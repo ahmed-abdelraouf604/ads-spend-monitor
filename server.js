@@ -30,7 +30,7 @@ app.use(session({
 }));
 
 // Serve frontend
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname)));
 
 // ── OAuth2 Client factory ──
 function makeOAuth2Client() {
