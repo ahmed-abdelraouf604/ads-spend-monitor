@@ -2,6 +2,8 @@
 // ADS SPEND MONITOR — Backend Server
 // Express + Google OAuth2 + Google Ads API v23
 // ============================================================
+const WebSocket = require('ws');
+global.WebSocket = WebSocket;
 require('dotenv').config();
 const express        = require('express');
 const session        = require('express-session');
