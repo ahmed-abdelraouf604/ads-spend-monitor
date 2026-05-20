@@ -6,314 +6,157 @@
 <title>Ads Spend Monitor</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap');
-
 :root {
-  --bg:        #f5f6fa;
-  --surface:   #ffffff;
-  --border:    #e8eaf0;
-  --border2:   #d0d4e0;
-  --text:      #1a1d2e;
-  --text2:     #6b7280;
-  --text3:     #9ca3af;
-  --blue:      #2563eb;
-  --blue-l:    #eff6ff;
-  --blue-b:    #bfdbfe;
-  --green:     #059669;
-  --green-l:   #ecfdf5;
-  --red:       #dc2626;
-  --red-l:     #fef2f2;
-  --yellow:    #d97706;
-  --yellow-l:  #fffbeb;
-  --sidebar:   #1e2235;
-  --sidebar-t: #8892aa;
-  --sidebar-a: #3b82f6;
-  --mono:      'IBM Plex Mono', monospace;
-  --sans:      'Inter', sans-serif;
-  --radius:    8px;
+  --bg:#f5f6fa;--surface:#fff;--border:#e8eaf0;--border2:#d0d4e0;
+  --text:#1a1d2e;--text2:#6b7280;--text3:#9ca3af;
+  --blue:#2563eb;--blue-l:#eff6ff;--blue-b:#bfdbfe;
+  --green:#059669;--green-l:#ecfdf5;
+  --red:#dc2626;--red-l:#fef2f2;
+  --yellow:#d97706;--yellow-l:#fffbeb;
+  --sidebar:#1e2235;--sidebar-t:#8892aa;--sidebar-a:#3b82f6;
+  --mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;--radius:8px;
 }
-
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex;min-height:100vh;}
+.sidebar{width:220px;min-height:100vh;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.3px;}
+.logo-sub{font-size:10px;color:var(--sidebar-t);margin-top:1px;}
+.sidebar-nav{flex:1;padding:12px 0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;font-size:13px;color:var(--sidebar-t);transition:all 0.15s;border-left:3px solid transparent;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;text-align:left;}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,0.04);}
+.nav-item.active{color:#fff;border-left-color:var(--sidebar-a);background:rgba(59,130,246,0.1);}
+.nav-icon{font-size:15px;width:20px;text-align:center;}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.06);}
+.sidebar-stats{font-size:10px;color:var(--sidebar-t);font-family:var(--mono);}
+.sidebar-stats span{color:#fff;font-weight:600;}
+.main{margin-left:220px;flex:1;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.page-title{font-size:15px;font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.status-pill{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);color:var(--text2);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text3);}
+.dot.live{background:var(--green);animation:pulse 2s infinite;}
+.dot.loading{background:var(--yellow);animation:pulse 1s infinite;}
+.dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,0.4);}50%{box-shadow:0 0 0 5px rgba(5,150,105,0);}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;border:none;font-family:var(--sans);}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:#1d4ed8;}
+.btn-ghost{background:none;border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.content{padding:24px 28px;flex:1;}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;}
+.stat-box .label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;}
+.stat-box .value{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+.stat-box .value.red{color:var(--red);}
+.stat-box .value.yellow{color:var(--yellow);}
+.stat-box .sub{font-size:11px;color:var(--text3);margin-top:4px;}
 
-.sidebar {
-  width: 220px; min-height: 100vh; background: var(--sidebar);
-  display: flex; flex-direction: column; flex-shrink: 0;
-  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
-}
+/* Logins panel */
+.logins-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
+.section-title{font-size:13px;font-weight:600;}
+.section-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.logins-grid{display:grid;grid-template-columns:260px 1fr;min-height:200px;}
+.logins-list{border-right:1px solid var(--border);padding:8px 0;}
+.login-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.12s;border-left:3px solid transparent;}
+.login-item:hover{background:var(--bg);}
+.login-item.active{background:var(--blue-l);border-left-color:var(--blue);}
+.login-item.active .login-email{color:var(--blue);}
+.login-avatar{width:32px;height:32px;border-radius:50%;background:var(--blue-l);border:1px solid var(--blue-b);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--blue);flex-shrink:0;overflow:hidden;}
+.login-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.login-email{font-size:12px;font-weight:500;color:var(--text);}
+.login-count{font-size:10px;color:var(--text3);margin-top:1px;}
+.remove-login{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:3px 6px;border-radius:4px;opacity:0;transition:all 0.15s;}
+.login-item:hover .remove-login{opacity:1;}
+.remove-login:hover{color:var(--red);background:var(--red-l);}
+.add-login-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;font-size:12px;color:var(--blue);font-weight:500;transition:background 0.12s;border:none;background:none;width:100%;text-align:left;border-top:1px solid var(--border);}
+.add-login-btn:hover{background:var(--blue-l);}
+.accounts-panel{padding:16px;overflow-y:auto;max-height:400px;}
+.accounts-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.accounts-panel-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;}
+.account-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;transition:background 0.12s;cursor:pointer;}
+.account-row:hover{background:var(--bg);}
+.account-row.selected{background:var(--blue-l);}
+.account-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border2);background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;position:relative;}
+.account-row.selected .account-check{background:var(--blue);border-color:var(--blue);}
+.account-row.selected .account-check::after{content:'✓';font-size:10px;color:#fff;font-weight:700;position:absolute;}
+.account-info{flex:1;min-width:0;}
+.account-name-sm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.account-id-sm{font-size:10px;font-family:var(--mono);color:var(--text3);}
+.account-currency{font-size:10px;font-family:var(--mono);color:var(--text2);background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:3px;}
+.panel-loading{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
+.panel-empty{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
 
-.sidebar-logo {
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex; align-items: center; gap: 10px;
-}
+/* Table */
+.table-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;}
+.search-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 12px;border-radius:6px;width:240px;}
+.search-input:focus{outline:none;border-color:var(--blue);}
+.filter-tabs{display:flex;gap:4px;}
+.f-tab{padding:5px 12px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all 0.12s;background:none;color:var(--text2);}
+.f-tab.on{background:var(--blue-l);border-color:var(--blue-b);color:var(--blue);}
+.f-tab.red{background:var(--red-l);border-color:#fecaca;color:var(--red);}
+.f-tab.yellow{background:var(--yellow-l);border-color:#fde68a;color:var(--yellow);}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--bg);border-bottom:1px solid var(--border);}
+th{padding:10px 16px;text-align:left;font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;}
+th.r,td.r{text-align:right;}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--bg);}
+tbody tr.row-over{background:#fff5f5;}
+tbody tr.row-over:hover{background:#fee2e2;}
+tbody tr.row-under{background:#fffbeb;}
+tbody tr.row-under:hover{background:#fef3c7;}
+td{padding:12px 16px;font-size:13px;}
+.acc-name-cell{font-weight:600;font-size:13px;}
+.acc-id-cell{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.acc-src-cell{font-size:10px;color:var(--text3);margin-top:1px;}
+.spend-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.spend-main{font-family:var(--mono);font-size:13px;font-weight:600;}
+.spend-sub{font-size:10px;font-family:var(--mono);color:var(--text3);}
 
-.logo-icon {
-  width: 32px; height: 32px; background: var(--blue);
-  border-radius: 8px; display: flex; align-items: center;
-  justify-content: center; font-size: 16px;
-}
+/* Pacing badge */
+.pacing-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.pacing-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;letter-spacing:0.2px;}
+.pacing-badge.over{background:var(--red-l);color:var(--red);}
+.pacing-badge.under{background:var(--yellow-l);color:var(--yellow);}
+.pacing-badge.ok{background:var(--green-l);color:var(--green);}
+.pacing-badge.none{background:var(--bg);color:var(--text3);border:1px solid var(--border);}
+.pacing-detail{font-size:10px;font-family:var(--mono);color:var(--text2);}
+.pacing-bar-wrap{width:100px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:2px;position:relative;}
+.pacing-bar{height:100%;border-radius:2px;transition:width 0.4s;}
+.pacing-bar.ok{background:var(--green);}
+.pacing-bar.over{background:var(--red);}
+.pacing-bar.under{background:var(--yellow);}
 
-.logo-text { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-.logo-sub  { font-size: 10px; color: var(--sidebar-t); margin-top: 1px; }
+.state-box{padding:60px;text-align:center;}
+.state-box h3{font-size:15px;font-weight:600;margin:12px 0 6px;}
+.state-box p{font-size:12px;color:var(--text2);line-height:1.7;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-.sidebar-nav { flex: 1; padding: 12px 0; }
-
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 20px; cursor: pointer;
-  font-size: 13px; color: var(--sidebar-t);
-  transition: all 0.15s; border-left: 3px solid transparent;
-  text-decoration: none; background: none; border-right: none;
-  border-top: none; border-bottom: none; width: 100%; text-align: left;
-}
-.nav-item:hover  { color: #fff; background: rgba(255,255,255,0.04); }
-.nav-item.active { color: #fff; border-left-color: var(--sidebar-a); background: rgba(59,130,246,0.1); }
-.nav-icon { font-size: 15px; width: 20px; text-align: center; }
-
-.sidebar-footer {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.sidebar-stats { font-size: 10px; color: var(--sidebar-t); font-family: var(--mono); }
-.sidebar-stats span { color: #fff; font-weight: 600; }
-
-.main { margin-left: 220px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
-
-.topbar {
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 0 28px; height: 56px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 50;
-}
-
-.topbar-left { display: flex; align-items: center; gap: 16px; }
-.page-title  { font-size: 15px; font-weight: 600; }
-.topbar-right { display: flex; align-items: center; gap: 10px; }
-
-.status-pill {
-  display: flex; align-items: center; gap: 6px;
-  background: var(--bg); border: 1px solid var(--border2);
-  border-radius: 20px; padding: 4px 12px;
-  font-size: 11px; font-family: var(--mono); color: var(--text2);
-}
-
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); }
-.dot.live    { background: var(--green); animation: pulse 2s infinite; }
-.dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
-.dot.error   { background: var(--red); }
-
-@keyframes pulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(5,150,105,0.4); }
-  50%     { box-shadow: 0 0 0 5px rgba(5,150,105,0); }
-}
-
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border-radius: var(--radius); font-size: 12px;
-  font-weight: 500; cursor: pointer; transition: all 0.15s; border: none;
-  font-family: var(--sans);
-}
-.btn-primary { background: var(--blue); color: #fff; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-ghost { background: none; border: 1px solid var(--border2); color: var(--text2); }
-.btn-ghost:hover { border-color: var(--blue); color: var(--blue); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.content { padding: 24px 28px; flex: 1; }
-
-.stats-bar {
-  display: grid; grid-template-columns: repeat(4,1fr);
-  gap: 12px; margin-bottom: 20px;
-}
-
-.stat-box {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px 20px;
-}
-.stat-box .label { font-size: 11px; color: var(--text2); font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-box .value { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
-.stat-box .value.red { color: var(--red); }
-.stat-box .sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-.logins-section {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); margin-bottom: 20px; overflow: hidden;
-}
-
-.section-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; border-bottom: 1px solid var(--border);
-}
-.section-title { font-size: 13px; font-weight: 600; }
-.section-sub   { font-size: 11px; color: var(--text2); margin-top: 2px; }
-
-.logins-grid {
-  display: grid; grid-template-columns: 260px 1fr; min-height: 200px;
-}
-
-.logins-list { border-right: 1px solid var(--border); padding: 8px 0; }
-
-.login-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; cursor: pointer; transition: background 0.12s;
-  border-left: 3px solid transparent;
-}
-.login-item:hover  { background: var(--bg); }
-.login-item.active { background: var(--blue-l); border-left-color: var(--blue); }
-.login-item.active .login-email { color: var(--blue); }
-
-.login-avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--blue-l); border: 1px solid var(--blue-b);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 600; color: var(--blue);
-  flex-shrink: 0; overflow: hidden;
-}
-.login-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-
-.login-email { font-size: 12px; font-weight: 500; color: var(--text); }
-.login-count { font-size: 10px; color: var(--text3); margin-top: 1px; }
-
-.remove-login {
-  margin-left: auto; background: none; border: none;
-  color: var(--text3); cursor: pointer; font-size: 14px;
-  padding: 3px 6px; border-radius: 4px; opacity: 0; transition: all 0.15s;
-}
-.login-item:hover .remove-login { opacity: 1; }
-.remove-login:hover { color: var(--red); background: var(--red-l); }
-
-.add-login-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px; cursor: pointer;
-  font-size: 12px; color: var(--blue); font-weight: 500;
-  transition: background 0.12s; border: none; background: none;
-  width: 100%; text-align: left; border-top: 1px solid var(--border);
-}
-.add-login-btn:hover { background: var(--blue-l); }
-
-.accounts-panel { padding: 16px; overflow-y: auto; max-height: 400px; }
-
-.accounts-panel-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
-}
-.accounts-panel-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
-
-.account-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 6px; transition: background 0.12s; cursor: pointer;
-}
-.account-row:hover    { background: var(--bg); }
-.account-row.selected { background: var(--blue-l); }
-
-.account-check {
-  width: 16px; height: 16px; border-radius: 4px;
-  border: 2px solid var(--border2); background: #fff;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: all 0.15s; position: relative;
-}
-.account-row.selected .account-check { background: var(--blue); border-color: var(--blue); }
-.account-row.selected .account-check::after { content: '✓'; font-size: 10px; color: #fff; font-weight: 700; position: absolute; }
-
-.account-info { flex: 1; min-width: 0; }
-.account-name-sm { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.account-id-sm   { font-size: 10px; font-family: var(--mono); color: var(--text3); }
-.account-currency { font-size: 10px; font-family: var(--mono); color: var(--text2); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; }
-
-.panel-loading { padding: 40px; text-align: center; color: var(--text3); font-size: 12px; }
-.panel-empty   { padding: 40px; text-align: center; color: var(--text3); font-size: 12px; }
-
-.table-section {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
-}
-
-.table-toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap;
-}
-
-.search-input {
-  background: var(--bg); border: 1px solid var(--border2);
-  color: var(--text); font-family: var(--sans); font-size: 13px;
-  padding: 7px 12px; border-radius: 6px; width: 240px;
-}
-.search-input:focus { outline: none; border-color: var(--blue); }
-
-.filter-tabs { display: flex; gap: 4px; }
-.f-tab {
-  padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500;
-  cursor: pointer; border: 1px solid transparent; transition: all 0.12s; background: none; color: var(--text2);
-}
-.f-tab.on  { background: var(--blue-l); border-color: var(--blue-b); color: var(--blue); }
-.f-tab.red { background: var(--red-l);  border-color: #fecaca;       color: var(--red); }
-
-table { width: 100%; border-collapse: collapse; }
-thead tr { background: var(--bg); border-bottom: 1px solid var(--border); }
-th {
-  padding: 10px 16px; text-align: left; font-size: 11px; color: var(--text2);
-  font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
-}
-th.r, td.r { text-align: right; }
-
-tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: var(--bg); }
-tbody tr.row-over { background: #fff5f5; }
-tbody tr.row-over:hover { background: #fee2e2; }
-
-td { padding: 12px 16px; font-size: 13px; }
-
-.acc-name-cell { font-weight: 600; font-size: 13px; }
-.acc-id-cell   { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-top: 2px; }
-.acc-src-cell  { font-size: 10px; color: var(--text3); margin-top: 1px; }
-
-.spend-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.spend-main { font-family: var(--mono); font-size: 13px; font-weight: 600; }
-.spend-main.over { color: var(--red); }
-.spend-limit { font-size: 10px; font-family: var(--mono); color: var(--text3); }
-
-.bar-track { width: 80px; height: 3px; background: var(--border); border-radius: 2px; margin-top: 2px; overflow: hidden; }
-.bar-fill  { height: 100%; border-radius: 2px; transition: width 0.4s; }
-.bar-fill.s { background: var(--green); }
-.bar-fill.w { background: var(--yellow); }
-.bar-fill.o { background: var(--red); }
-
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 600; padding: 3px 8px;
-  border-radius: 4px; letter-spacing: 0.3px;
-}
-.badge.ok   { background: var(--green-l); color: var(--green); }
-.badge.over { background: var(--red-l);   color: var(--red); }
-.badge.none { background: var(--bg); color: var(--text3); border: 1px solid var(--border); }
-
-.state-box { padding: 60px; text-align: center; }
-.state-box h3 { font-size: 15px; font-weight: 600; margin: 12px 0 6px; }
-.state-box p  { font-size: 12px; color: var(--text2); line-height: 1.7; }
-.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;
-}
-.modal-overlay.open { opacity: 1; pointer-events: all; }
-.modal {
-  background: var(--surface); border-radius: 12px; padding: 28px;
-  width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-  transform: translateY(10px); transition: transform 0.2s;
-}
-.modal-overlay.open .modal { transform: translateY(0); }
-.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-.modal .sub { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
-.modal label { display: block; font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; margin-top: 14px; }
-.modal label:first-of-type { margin-top: 0; }
-.modal input { width: 100%; border: 1px solid var(--border2); border-radius: 6px; padding: 8px 12px; font-size: 13px; font-family: var(--mono); }
-.modal input:focus { outline: none; border-color: var(--blue); }
-.modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
-
-footer { padding: 16px 28px; font-size: 11px; color: var(--text3); border-top: 1px solid var(--border); background: var(--surface); }
+/* Budget modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface);border-radius:12px;padding:28px;width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);transform:translateY(10px);transition:transform 0.2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+.modal .sub{font-size:12px;color:var(--text2);margin-bottom:20px;}
+.modal label{display:block;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;margin-top:14px;}
+.modal label:first-of-type{margin-top:0;}
+.modal input{width:100%;border:1px solid var(--border2);border-radius:6px;padding:8px 12px;font-size:13px;font-family:var(--mono);}
+.modal input:focus{outline:none;border-color:var(--blue);}
+.modal-hint{font-size:11px;color:var(--text3);margin-top:6px;font-family:var(--mono);}
+.modal-preview{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:14px;font-size:12px;font-family:var(--mono);color:var(--text2);line-height:1.8;}
+.modal-preview strong{color:var(--text);}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
+footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface);}
 </style>
 </head>
 <body>
@@ -321,106 +164,64 @@ footer { padding: 16px 28px; font-size: 11px; color: var(--text3); border-top: 1
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="logo-icon">⚡</div>
-    <div>
-      <div class="logo-text">Ads Monitor</div>
-      <div class="logo-sub">Spend Dashboard</div>
-    </div>
+    <div><div class="logo-text">Ads Monitor</div><div class="logo-sub">Spend Dashboard</div></div>
   </div>
   <nav class="sidebar-nav">
-    <button class="nav-item active" onclick="showPage('dashboard')">
-      <span class="nav-icon">📊</span> Dashboard
-    </button>
-    <button class="nav-item" onclick="showPage('accounts')">
-      <span class="nav-icon">🔗</span> Manage Logins
-    </button>
+    <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+    <button class="nav-item" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
   </nav>
   <div class="sidebar-footer">
-    <div class="sidebar-stats">
-      Logins: <span id="sbLogins">0</span> &nbsp;·&nbsp;
-      Accounts: <span id="sbAccounts">0</span>
-    </div>
+    <div class="sidebar-stats">Logins: <span id="sbLogins">0</span> &nbsp;·&nbsp; Accounts: <span id="sbAccounts">0</span></div>
   </div>
 </aside>
 
 <main class="main">
   <div class="topbar">
-    <div class="topbar-left">
-      <span class="page-title" id="pageTitle">Performance Alerts</span>
-    </div>
+    <span class="page-title" id="pageTitle">Performance Alerts</span>
     <div class="topbar-right">
-      <div class="status-pill">
-        <div class="dot" id="statusDot"></div>
-        <span id="statusText">—</span>
-      </div>
+      <div class="status-pill"><div class="dot" id="statusDot"></div><span id="statusText">—</span></div>
       <button class="btn btn-ghost" id="refreshBtn" onclick="loadSpend()" disabled>↺ Refresh</button>
     </div>
   </div>
 
-  <!-- DASHBOARD PAGE -->
+  <!-- DASHBOARD -->
   <div id="pageDashboard" class="content">
     <div class="stats-bar">
-      <div class="stat-box">
-        <div class="label">Linked Accounts</div>
-        <div class="value" id="cAccounts">—</div>
-        <div class="sub" id="cLoginsSub">— logins</div>
-      </div>
-      <div class="stat-box">
-        <div class="label">Daily Spend</div>
-        <div class="value" id="cDaily">—</div>
-        <div class="sub">today</div>
-      </div>
-      <div class="stat-box">
-        <div class="label">MTD Spend</div>
-        <div class="value" id="cMtd">—</div>
-        <div class="sub" id="cMonthSub">this month</div>
-      </div>
-      <div class="stat-box">
-        <div class="label">Over Threshold</div>
-        <div class="value red" id="cAlerts">—</div>
-        <div class="sub">need attention</div>
-      </div>
+      <div class="stat-box"><div class="label">Linked Accounts</div><div class="value" id="cAccounts">—</div><div class="sub" id="cLoginsSub">—</div></div>
+      <div class="stat-box"><div class="label">Today's Spend</div><div class="value" id="cDaily">—</div><div class="sub">across all accounts</div></div>
+      <div class="stat-box"><div class="label">🔴 Overspending</div><div class="value red" id="cOver">—</div><div class="sub">accounts above pace</div></div>
+      <div class="stat-box"><div class="label">🟡 Underspending</div><div class="value yellow" id="cUnder">—</div><div class="sub">accounts below pace</div></div>
     </div>
 
     <div class="table-section">
       <div class="table-toolbar">
-        <input class="search-input" id="searchBox" type="text"
-          placeholder="🔍  Search account name or ID..." oninput="renderTable()" />
+        <input class="search-input" id="searchBox" type="text" placeholder="🔍  Search account..." oninput="renderTable()"/>
         <div class="filter-tabs">
           <button class="f-tab on"  id="fAll"   onclick="setFilter('all')">All</button>
-          <button class="f-tab"     id="fAlert" onclick="setFilter('alert')">🔴 Alerts</button>
-          <button class="f-tab"     id="fOk"    onclick="setFilter('ok')">✅ OK</button>
+          <button class="f-tab"     id="fOver"  onclick="setFilter('over')">🔴 Overspending</button>
+          <button class="f-tab"     id="fUnder" onclick="setFilter('under')">🟡 Underspending</button>
+          <button class="f-tab"     id="fOk"    onclick="setFilter('ok')">✅ On Track</button>
         </div>
       </div>
       <div id="tableWrap">
-        <div class="state-box">
-          <div style="font-size:36px">🔗</div>
-          <h3>No accounts linked</h3>
-          <p>Go to <strong>Manage Logins</strong> to connect your Google accounts.</p>
-        </div>
+        <div class="state-box"><div style="font-size:36px">🔗</div><h3>No accounts linked</h3><p>Go to <strong>Manage Logins</strong> to get started.</p></div>
       </div>
     </div>
   </div>
 
-  <!-- MANAGE LOGINS PAGE -->
+  <!-- MANAGE LOGINS -->
   <div id="pageAccounts" class="content" style="display:none;">
     <div class="logins-section">
       <div class="section-header">
-        <div>
-          <div class="section-title">Google Account Logins</div>
-          <div class="section-sub">Connect Google accounts to access their MCC structures</div>
-        </div>
+        <div><div class="section-title">Google Account Logins</div><div class="section-sub">Connect Google accounts to access their MCC structures</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           <div id="loginStats" style="font-size:11px;color:var(--text2);font-family:var(--mono)"></div>
           <button class="btn btn-primary" onclick="saveWhitelist()">💾 Save Selection</button>
         </div>
       </div>
       <div class="logins-grid">
-        <div class="logins-list" id="loginsList">
-          <div class="panel-loading">Loading logins...</div>
-        </div>
-        <div class="accounts-panel" id="accountsPanel">
-          <div class="panel-empty">← Select a login to see its accounts</div>
-        </div>
+        <div class="logins-list" id="loginsList"><div class="panel-loading">Loading...</div></div>
+        <div class="accounts-panel" id="accountsPanel"><div class="panel-empty">← Select a login to see its accounts</div></div>
       </div>
     </div>
   </div>
@@ -428,24 +229,26 @@ footer { padding: 16px 28px; font-size: 11px; color: var(--text3); border-top: 1
   <footer>Auto-refreshes every 5 minutes · Ads Spend Monitor</footer>
 </main>
 
-<!-- THRESHOLD MODAL -->
-<div class="modal-overlay" id="threshModal">
+<!-- BUDGET MODAL -->
+<div class="modal-overlay" id="budgetModal">
   <div class="modal">
-    <h3 id="threshTitle">Set Thresholds</h3>
-    <div class="sub" id="threshSub">Daily and monthly spend limits</div>
-    <label>Daily Threshold (leave blank for no limit)</label>
-    <input type="number" id="threshDaily" placeholder="e.g. 50" />
-    <label>MTD Threshold (leave blank for no limit)</label>
-    <input type="number" id="threshMtd" placeholder="e.g. 1200" />
+    <h3 id="budgetTitle">Set Budget</h3>
+    <div class="sub" id="budgetSub"></div>
+    <label>Monthly Budget</label>
+    <input type="number" id="budgetMonthly" placeholder="e.g. 3000" oninput="updatePreview()"/>
+    <div class="modal-hint">Enter the total monthly budget for this account</div>
+    <label>Acceptable Range (%)</label>
+    <input type="number" id="budgetRange" placeholder="10" value="10" oninput="updatePreview()"/>
+    <div class="modal-hint">Alert if spend is more than ±X% from expected pace (default: 10%)</div>
+    <div class="modal-preview" id="budgetPreview">Enter a monthly budget to see the pacing preview.</div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveThreshold()">Save</button>
+      <button class="btn btn-ghost" onclick="closeBudgetModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBudget()">Save Budget</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── State ──
 let allSpend     = [];
 let activeFilter = 'all';
 let logins       = [];
@@ -453,52 +256,37 @@ let discoveredAccounts = {};
 let whitelist    = new Set();
 let whitelistData = {};
 let activeLogin  = null;
-let threshTarget = null;
+let budgetTarget = null;
+let budgetTargetMtd = 0;
 let refreshTimer = null;
 
-// ── API helper — always uses relative URLs (same domain) ──
-async function api(path, method = 'GET', body = null) {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include'
-  };
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers:{'Content-Type':'application/json'}, credentials:'include' };
   if (body) opts.body = JSON.stringify(body);
-  const res  = await fetch(path, opts);  // relative URL — no domain needed
+  const res  = await fetch(path, opts);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
   return data;
 }
 
-// ── Init ──
 window.onload = () => {
-  window.addEventListener('message', (e) => {
-    if (e.data?.type === 'AUTH_SUCCESS') {
-      showToast('✅ ' + e.data.email + ' connected!');
-      loadLogins();
-    }
-    if (e.data?.type === 'AUTH_ERROR') {
-      showToast('❌ Auth error: ' + e.data.error, 'error');
-    }
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
+    if (e.data?.type === 'AUTH_ERROR')   { showToast('❌ ' + e.data.error, 'error'); }
   });
   loadLogins();
   loadSpend();
 };
 
-// ── Navigation ──
 function showPage(page) {
   ['dashboard','accounts'].forEach(p => {
     document.getElementById('page' + cap(p)).style.display = p === page ? '' : 'none';
   });
-  document.querySelectorAll('.nav-item').forEach((el, i) => {
-    el.classList.toggle('active', ['dashboard','accounts'][i] === page);
-  });
-  const titles = { dashboard: 'Performance Alerts', accounts: 'Manage Logins' };
-  document.getElementById('pageTitle').textContent = titles[page] || '';
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','accounts'][i] === page));
+  document.getElementById('pageTitle').textContent = page === 'dashboard' ? 'Performance Alerts' : 'Manage Logins';
   if (page === 'accounts') renderLoginsList();
 }
 
-// ── Logins ──
 async function loadLogins() {
   try {
     const res = await api('/api/logins');
@@ -507,79 +295,60 @@ async function loadLogins() {
     document.getElementById('refreshBtn').disabled  = false;
     renderLoginsList();
     if (logins.length > 0) loadSpend();
-  } catch(e) {
-    console.error('loadLogins:', e);
-  }
+  } catch(e) { console.error('loadLogins:', e); }
 }
 
 function renderLoginsList() {
   const el = document.getElementById('loginsList');
   if (!logins.length) {
-    el.innerHTML = `
-      <div class="panel-empty">No Google accounts connected yet.</div>
-      <button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
+    el.innerHTML = `<div class="panel-empty">No accounts connected yet.</div><button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
     return;
   }
-
-  el.innerHTML = logins.map((l, i) => `
-    <div class="login-item ${activeLogin === l.email ? 'active' : ''}" onclick="selectLogin('${esc(l.email)}')">
-      <div class="login-avatar">
-        ${l.picture ? `<img src="${l.picture}" onerror="this.style.display='none'" />` : ''}
-        <span style="${l.picture ? 'display:none' : ''}">${l.email[0].toUpperCase()}</span>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div class="login-email">${esc(l.email)}</div>
-        <div class="login-count" id="lc_${i}">—</div>
-      </div>
+  el.innerHTML = logins.map((l,i) => `
+    <div class="login-item ${activeLogin===l.email?'active':''}" onclick="selectLogin('${esc(l.email)}')">
+      <div class="login-avatar">${l.picture?`<img src="${l.picture}" onerror="this.style.display='none'"/>`:''}
+        <span style="${l.picture?'display:none':''}">${l.email[0].toUpperCase()}</span></div>
+      <div style="flex:1;min-width:0;"><div class="login-email">${esc(l.email)}</div>
+        <div class="login-count" id="lc_${i}">—</div></div>
       <button class="remove-login" onclick="removeLogin(event,'${esc(l.email)}')">✕</button>
     </div>`).join('') +
     `<button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
-
   if (!activeLogin && logins.length > 0) selectLogin(logins[0].email);
 }
 
 async function selectLogin(email) {
   activeLogin = email;
   renderLoginsList();
-
   const panel = document.getElementById('accountsPanel');
   panel.innerHTML = '<div class="panel-loading"><div class="spinner" style="margin:0 auto 10px"></div>Loading accounts...</div>';
-
   try {
     if (!discoveredAccounts[email]) {
       const res = await api('/api/accounts');
       logins.forEach(l => { if (!discoveredAccounts[l.email]) discoveredAccounts[l.email] = []; });
-      (res.accounts || []).forEach(a => {
+      (res.accounts||[]).forEach(a => {
         if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
-        if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId)) {
+        if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
           discoveredAccounts[a.loginEmail].push(a);
-        }
       });
     }
-
     const accounts = discoveredAccounts[email] || [];
     const idx = logins.findIndex(l => l.email === email);
-    const countEl = document.getElementById('lc_' + idx);
-    if (countEl) countEl.textContent = accounts.length + ' account' + (accounts.length !== 1 ? 's' : '');
-
+    const ce  = document.getElementById('lc_' + idx);
+    if (ce) ce.textContent = accounts.length + ' account' + (accounts.length!==1?'s':'');
     renderAccountsPanel(email, accounts);
   } catch(e) {
-    panel.innerHTML = `<div class="panel-empty">❌ Error: ${esc(e.message)}</div>`;
+    panel.innerHTML = `<div class="panel-empty">❌ ${esc(e.message)}</div>`;
   }
 }
 
 function renderAccountsPanel(email, accounts) {
   const panel = document.getElementById('accountsPanel');
   document.getElementById('loginStats').textContent = `${whitelist.size} selected`;
-
-  if (!accounts.length) {
-    panel.innerHTML = '<div class="panel-empty">No sub-accounts found under this login.</div>';
-    return;
-  }
+  if (!accounts.length) { panel.innerHTML = '<div class="panel-empty">No sub-accounts found.</div>'; return; }
 
   panel.innerHTML = `
     <div class="accounts-panel-header">
-      <span class="accounts-panel-title">${accounts.length} accounts found</span>
+      <span class="accounts-panel-title">${accounts.length} accounts</span>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="selectAll('${esc(email)}')">Select All</button>
         <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="deselectAll('${esc(email)}')">Deselect All</button>
@@ -587,139 +356,141 @@ function renderAccountsPanel(email, accounts) {
     </div>` +
     accounts.map(a => {
       const sel = whitelist.has(a.accountId);
-      return `
-        <div class="account-row ${sel ? 'selected' : ''}"
-          onclick="toggleAccount('${a.accountId}','${esc(a.accountName)}','${a.mccId||a.accountId}','${esc(email)}','${a.currency||''}')">
-          <div class="account-check"></div>
-          <div class="account-info">
-            <div class="account-name-sm">${esc(a.accountName)}</div>
-            <div class="account-id-sm">${esc(a.accountId)}</div>
-          </div>
-          <span class="account-currency">${a.currency||''}</span>
-          ${sel ? `<button style="background:none;border:none;font-size:11px;color:var(--blue);cursor:pointer;padding:2px 6px;white-space:nowrap;"
-            onclick="openThresh(event,'${a.accountId}','${esc(a.accountName)}')">Set limits</button>` : ''}
-        </div>`;
+      const d   = whitelistData[a.accountId];
+      return `<div class="account-row ${sel?'selected':''}" onclick="toggleAccount('${a.accountId}','${esc(a.accountName)}','${a.mccId||a.accountId}','${esc(email)}','${a.currency||''}')">
+        <div class="account-check"></div>
+        <div class="account-info">
+          <div class="account-name-sm">${esc(a.accountName)}</div>
+          <div class="account-id-sm">${esc(a.accountId)}</div>
+          ${d&&d.monthlyBudget?`<div style="font-size:9px;color:var(--text3);margin-top:1px;">Budget: ${d.monthlyBudget} · Range: ±${d.rangePercent||10}%</div>`:''}
+        </div>
+        <span class="account-currency">${a.currency||''}</span>
+        ${sel?`<button style="background:none;border:none;font-size:11px;color:var(--blue);cursor:pointer;padding:2px 6px;white-space:nowrap;" onclick="openBudget(event,'${a.accountId}','${esc(a.accountName)}',0)">Set budget</button>`:''}
+      </div>`;
     }).join('');
 }
 
 function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
-  if (whitelist.has(accountId)) {
-    whitelist.delete(accountId);
-    delete whitelistData[accountId];
-  } else {
-    whitelist.add(accountId);
-    whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, dailyThreshold: null, mtdThreshold: null };
-  }
-  renderAccountsPanel(loginEmail, discoveredAccounts[loginEmail] || []);
+  if (whitelist.has(accountId)) { whitelist.delete(accountId); delete whitelistData[accountId]; }
+  else { whitelist.add(accountId); whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget: null, rangePercent: 10 }; }
+  renderAccountsPanel(loginEmail, discoveredAccounts[loginEmail]||[]);
 }
 
 function selectAll(email) {
-  (discoveredAccounts[email] || []).forEach(a => {
+  (discoveredAccounts[email]||[]).forEach(a => {
     whitelist.add(a.accountId);
-    if (!whitelistData[a.accountId]) {
-      whitelistData[a.accountId] = { accountId: a.accountId, accountName: a.accountName, mccId: a.mccId||a.accountId, loginEmail: email, currency: a.currency, dailyThreshold: null, mtdThreshold: null };
-    }
+    if (!whitelistData[a.accountId]) whitelistData[a.accountId] = { accountId:a.accountId, accountName:a.accountName, mccId:a.mccId||a.accountId, loginEmail:email, currency:a.currency, monthlyBudget:null, rangePercent:10 };
   });
-  renderAccountsPanel(email, discoveredAccounts[email] || []);
+  renderAccountsPanel(email, discoveredAccounts[email]||[]);
 }
 
 function deselectAll(email) {
-  (discoveredAccounts[email] || []).forEach(a => { whitelist.delete(a.accountId); delete whitelistData[a.accountId]; });
-  renderAccountsPanel(email, discoveredAccounts[email] || []);
+  (discoveredAccounts[email]||[]).forEach(a => { whitelist.delete(a.accountId); delete whitelistData[a.accountId]; });
+  renderAccountsPanel(email, discoveredAccounts[email]||[]);
 }
 
 async function saveWhitelist() {
   const accounts = Array.from(whitelist).map(id => whitelistData[id]).filter(Boolean);
   try {
-    await api('/api/whitelist', 'POST', { accounts });
+    await api('/api/whitelist','POST',{ accounts });
     showToast('✅ Selection saved!');
     loadSpend();
     showPage('dashboard');
-  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 
 async function addLogin() {
-  try {
-    const res = await api('/auth/url');
-    window.open(res.url, 'Google Login', 'width=500,height=620,left=300,top=100');
-  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  try { const res = await api('/auth/url'); window.open(res.url,'Google Login','width=500,height=620,left=300,top=100'); }
+  catch(e) { showToast('❌ '+e.message,'error'); }
 }
 
 async function removeLogin(e, email) {
   e.stopPropagation();
-  if (!confirm('Remove ' + email + '?')) return;
+  if (!confirm('Remove '+email+'?')) return;
   try {
-    await api('/api/logins/' + encodeURIComponent(email), 'DELETE');
+    await api('/api/logins/'+encodeURIComponent(email),'DELETE');
     logins = logins.filter(l => l.email !== email);
-    if (activeLogin === email) activeLogin = logins[0]?.email || null;
+    if (activeLogin === email) activeLogin = logins[0]?.email||null;
     delete discoveredAccounts[email];
-    [...whitelist].forEach(id => { if (whitelistData[id]?.loginEmail === email) { whitelist.delete(id); delete whitelistData[id]; }});
+    [...whitelist].forEach(id => { if (whitelistData[id]?.loginEmail===email){whitelist.delete(id);delete whitelistData[id];}});
     renderLoginsList();
-    showToast('Removed ' + email);
-  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+    showToast('Removed '+email);
+  } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 
 // ── Spend ──
 async function loadSpend() {
-  setStatus('loading', 'Fetching...');
+  setStatus('loading','Fetching...');
   document.getElementById('refreshBtn').disabled = true;
   try {
     const res = await api('/api/spend');
-    allSpend = res.accounts || [];
+    allSpend  = res.accounts||[];
     document.getElementById('sbAccounts').textContent = allSpend.length;
     updateStats();
     renderTable();
-    setStatus('live', new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'}));
+    setStatus('live', new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
     document.getElementById('refreshBtn').disabled = false;
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(loadSpend, 5 * 60 * 1000);
+    refreshTimer = setTimeout(loadSpend, 5*60*1000);
   } catch(e) {
-    setStatus('error', 'Error');
+    setStatus('error','Error');
     document.getElementById('refreshBtn').disabled = false;
   }
 }
 
 function updateStats() {
-  const alerts = allSpend.filter(a => a.dailyOver||a.mtdOver).length;
-  const loginCount = [...new Set(allSpend.map(a => a.loginEmail))].length;
+  const over  = allSpend.filter(a => a.pacing?.status==='overspending').length;
+  const under = allSpend.filter(a => a.pacing?.status==='underspending').length;
+  const totalDaily = allSpend.reduce((s,a)=>s+(a.dailySpend||0),0);
+  const loginCount = [...new Set(allSpend.map(a=>a.loginEmail))].length;
   document.getElementById('cAccounts').textContent  = allSpend.length;
-  document.getElementById('cLoginsSub').textContent = loginCount + ' login' + (loginCount!==1?'s':'');
-  document.getElementById('cDaily').textContent     = fmt(allSpend.reduce((s,a) => s+(a.dailySpend||0),0));
-  document.getElementById('cMtd').textContent       = fmt(allSpend.reduce((s,a) => s+(a.mtdSpend||0),0));
-  document.getElementById('cAlerts').textContent    = alerts;
-  document.getElementById('cMonthSub').textContent  = new Date().toLocaleString('en-GB',{month:'long',year:'numeric'});
+  document.getElementById('cLoginsSub').textContent = loginCount+' login'+(loginCount!==1?'s':'');
+  document.getElementById('cDaily').textContent     = fmt(totalDaily);
+  document.getElementById('cOver').textContent      = over;
+  document.getElementById('cUnder').textContent     = under;
 }
 
 function renderTable() {
   const search   = document.getElementById('searchBox').value.toLowerCase();
   const filtered = allSpend.filter(a => {
-    const m = a.accountName.toLowerCase().includes(search) || a.accountId.includes(search);
+    const m = a.accountName.toLowerCase().includes(search)||a.accountId.includes(search);
     if (!m) return false;
-    if (activeFilter === 'alert') return a.dailyOver || a.mtdOver;
-    if (activeFilter === 'ok')    return !a.dailyOver && !a.mtdOver;
+    if (activeFilter==='over')  return a.pacing?.status==='overspending';
+    if (activeFilter==='under') return a.pacing?.status==='underspending';
+    if (activeFilter==='ok')    return a.pacing?.status==='on_track';
     return true;
   });
 
   if (!filtered.length) {
-    document.getElementById('tableWrap').innerHTML = `
-      <div class="state-box">
-        <div style="font-size:32px">${allSpend.length ? '🔍' : '🔗'}</div>
-        <h3>${allSpend.length ? 'No results' : 'No accounts linked'}</h3>
-        <p>${allSpend.length ? 'Try a different filter.' : 'Go to <strong>Manage Logins</strong> to get started.'}</p>
-      </div>`;
+    document.getElementById('tableWrap').innerHTML = `<div class="state-box"><div style="font-size:32px">${allSpend.length?'🔍':'🔗'}</div><h3>${allSpend.length?'No results':'No accounts linked'}</h3><p>${allSpend.length?'Try a different filter.':'Go to <strong>Manage Logins</strong>.'}</p></div>`;
     return;
   }
 
+  const today = new Date().getDate();
+
   const rows = filtered.map(a => {
-    const rowCls = (a.dailyOver||a.mtdOver) ? 'row-over' : '';
-    const dPct   = a.dailyThreshold ? Math.min((a.dailySpend/a.dailyThreshold)*100,100) : null;
-    const mPct   = a.mtdThreshold   ? Math.min((a.mtdSpend  /a.mtdThreshold  )*100,100) : null;
-    const curr   = a.currency || '';
-    const badge  = (a.dailyOver||a.mtdOver)
-      ? `<span class="badge over">● Over limit</span>`
-      : (a.dailyThreshold||a.mtdThreshold)
-        ? `<span class="badge ok">✓ OK</span>`
-        : `<span class="badge none">No limit</span>`;
+    const p    = a.pacing;
+    const curr = a.currency||'';
+    const rowCls = p?.status==='overspending' ? 'row-over' : p?.status==='underspending' ? 'row-under' : '';
+
+    // Pacing badge
+    let badge, detail, barPct, barCls;
+    if (!p) {
+      badge  = `<span class="pacing-badge none">No budget set</span>`;
+      detail = '';
+    } else {
+      const icon = p.status==='overspending' ? '🔴' : p.status==='underspending' ? '🟡' : '✅';
+      const cls  = p.status==='overspending' ? 'over' : p.status==='underspending' ? 'under' : 'ok';
+      const label = p.status==='overspending' ? `${p.absVariance}% over pace` : p.status==='underspending' ? `${p.absVariance}% under pace` : `On track (${p.variance>0?'+':''}${p.variance}%)`;
+      badge  = `<span class="pacing-badge ${cls}">${icon} ${label}</span>`;
+      detail = `<div class="pacing-detail">Expected: ${curr} ${fmt(p.expected)} · Actual: ${curr} ${fmt(a.mtdSpend)}</div>`;
+      barPct = Math.min((a.mtdSpend/p.expected)*100, 150);
+      barCls = cls;
+    }
+
+    const budgetLine = a.monthlyBudget
+      ? `<div class="spend-sub">Budget: ${curr} ${fmt(a.monthlyBudget)} · Day ${today}/30.4</div>`
+      : `<div class="spend-sub" style="color:var(--yellow)">⚠ No budget set</div>`;
 
     return `<tr class="${rowCls}">
       <td>
@@ -729,20 +500,25 @@ function renderTable() {
       </td>
       <td class="r">
         <div class="spend-cell">
-          <span class="spend-main ${a.dailyOver?'over':''}">${curr} ${fmt(a.dailySpend)}</span>
-          ${a.dailyThreshold ? `<span class="spend-limit">limit: ${curr} ${fmt(a.dailyThreshold)}</span>${barHtml(dPct)}` : `<span class="spend-limit">no limit</span>`}
+          <span class="spend-main">${curr} ${fmt(a.dailySpend)}</span>
+          <span class="spend-sub">today</span>
         </div>
       </td>
       <td class="r">
         <div class="spend-cell">
-          <span class="spend-main ${a.mtdOver?'over':''}">${curr} ${fmt(a.mtdSpend)}</span>
-          ${a.mtdThreshold ? `<span class="spend-limit">limit: ${curr} ${fmt(a.mtdThreshold)}</span>${barHtml(mPct)}` : `<span class="spend-limit">no limit</span>`}
+          <span class="spend-main">${curr} ${fmt(a.mtdSpend)}</span>
+          ${budgetLine}
         </div>
       </td>
       <td class="r">
-        ${badge}
-        <button style="display:block;margin-top:4px;background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;"
-          onclick="openThreshFromTable('${a.accountId}','${esc(a.accountName)}')">Set limits</button>
+        <div class="pacing-cell">
+          ${badge}
+          ${detail}
+          ${p?`<div class="pacing-bar-wrap"><div class="pacing-bar ${barCls}" style="width:${Math.min(barPct,100)}%"></div></div>`:''}
+          <button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;margin-top:2px;" onclick="openBudgetFromTable('${a.accountId}','${esc(a.accountName)}',${a.mtdSpend},${a.monthlyBudget||0},${a.rangePercent||10})">
+            ${a.monthlyBudget?'Edit budget':'Set budget'}
+          </button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -753,90 +529,105 @@ function renderTable() {
         <th>Account</th>
         <th class="r">Daily Spend</th>
         <th class="r">MTD Spend</th>
-        <th class="r">Status</th>
+        <th class="r">Pacing Status</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
 
-function barHtml(pct) {
-  if (pct === null) return '';
-  const c = pct>=100?'o':pct>=80?'w':'s';
-  return `<div class="bar-track"><div class="bar-fill ${c}" style="width:${pct}%"></div></div>`;
-}
-
 function setFilter(f) {
   activeFilter = f;
-  document.querySelectorAll('.f-tab').forEach(b => b.classList.remove('on','red'));
-  document.getElementById('f' + cap(f)).classList.add(f==='alert'?'red':'on');
+  document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('on','red','yellow'));
+  const btn = document.getElementById('f'+cap(f));
+  if (f==='over') btn.classList.add('red');
+  else if (f==='under') btn.classList.add('yellow');
+  else btn.classList.add('on');
   renderTable();
 }
 
-// ── Threshold modal ──
-function openThresh(e, accountId, accountName) {
+// ── Budget Modal ──
+function openBudget(e, accountId, accountName, mtdSpend) {
   e.stopPropagation();
-  threshTarget = accountId;
-  document.getElementById('threshTitle').textContent = accountName;
-  document.getElementById('threshSub').textContent   = accountId;
-  const d = whitelistData[accountId] || {};
-  document.getElementById('threshDaily').value = d.dailyThreshold || '';
-  document.getElementById('threshMtd').value   = d.mtdThreshold   || '';
-  document.getElementById('threshModal').classList.add('open');
+  budgetTarget  = accountId;
+  budgetTargetMtd = mtdSpend;
+  document.getElementById('budgetTitle').textContent = accountName;
+  document.getElementById('budgetSub').textContent   = accountId;
+  const d = whitelistData[accountId]||{};
+  document.getElementById('budgetMonthly').value = d.monthlyBudget||'';
+  document.getElementById('budgetRange').value   = d.rangePercent||10;
+  updatePreview();
+  document.getElementById('budgetModal').classList.add('open');
 }
 
-function openThreshFromTable(accountId, accountName) {
-  threshTarget = accountId;
-  document.getElementById('threshTitle').textContent = accountName;
-  document.getElementById('threshSub').textContent   = accountId;
-  const acc = allSpend.find(a => a.accountId.replace(/-/g,'') === accountId.replace(/-/g,'')) || {};
-  document.getElementById('threshDaily').value = acc.dailyThreshold || '';
-  document.getElementById('threshMtd').value   = acc.mtdThreshold   || '';
-  document.getElementById('threshModal').classList.add('open');
+function openBudgetFromTable(accountId, accountName, mtdSpend, budget, range) {
+  budgetTarget    = accountId;
+  budgetTargetMtd = mtdSpend;
+  document.getElementById('budgetTitle').textContent = accountName;
+  document.getElementById('budgetSub').textContent   = accountId;
+  document.getElementById('budgetMonthly').value = budget||'';
+  document.getElementById('budgetRange').value   = range||10;
+  updatePreview();
+  document.getElementById('budgetModal').classList.add('open');
 }
 
-function closeModal() { document.getElementById('threshModal').classList.remove('open'); }
+function updatePreview() {
+  const budget = parseFloat(document.getElementById('budgetMonthly').value)||0;
+  const range  = parseFloat(document.getElementById('budgetRange').value)||10;
+  const prev   = document.getElementById('budgetPreview');
+  if (!budget) { prev.innerHTML = 'Enter a monthly budget to see the pacing preview.'; return; }
+  const today    = new Date().getDate();
+  const expected = (today/30.4)*budget;
+  const mtd      = budgetTargetMtd||0;
+  const variance = ((mtd/expected)-1)*100;
+  const upper    = expected*(1+range/100);
+  const lower    = expected*(1-range/100);
+  let statusLine;
+  if (variance > range)       statusLine = `<span style="color:var(--red);font-weight:600">🔴 Overspending by ${Math.abs(variance).toFixed(1)}%</span>`;
+  else if (variance < -range) statusLine = `<span style="color:var(--yellow);font-weight:600">🟡 Underspending by ${Math.abs(variance).toFixed(1)}%</span>`;
+  else                        statusLine = `<span style="color:var(--green);font-weight:600">✅ On track (${variance>0?'+':''}${variance.toFixed(1)}%)</span>`;
+  prev.innerHTML = `
+    Day <strong>${today}</strong> of month &nbsp;|&nbsp; Budget: <strong>${fmt(budget)}</strong><br>
+    Expected to date: <strong>${fmt(expected)}</strong> &nbsp;(${today}/30.4 × ${fmt(budget)})<br>
+    Acceptable range: <strong>${fmt(lower)}</strong> – <strong>${fmt(upper)}</strong> (±${range}%)<br>
+    Current MTD: <strong>${fmt(mtd)}</strong><br><br>
+    Status: ${statusLine}`;
+}
 
-async function saveThreshold() {
-  const daily = parseFloat(document.getElementById('threshDaily').value) || null;
-  const mtd   = parseFloat(document.getElementById('threshMtd').value)   || null;
+function closeBudgetModal() { document.getElementById('budgetModal').classList.remove('open'); }
+
+async function saveBudget() {
+  const monthly = parseFloat(document.getElementById('budgetMonthly').value)||null;
+  const range   = parseFloat(document.getElementById('budgetRange').value)||10;
   try {
-    await api('/api/whitelist/' + threshTarget, 'PATCH', { dailyThreshold: daily, mtdThreshold: mtd });
-    if (whitelistData[threshTarget]) { whitelistData[threshTarget].dailyThreshold = daily; whitelistData[threshTarget].mtdThreshold = mtd; }
-    closeModal();
-    showToast('✅ Thresholds saved');
+    await api('/api/whitelist/'+budgetTarget,'PATCH',{ monthlyBudget:monthly, rangePercent:range });
+    if (whitelistData[budgetTarget]) { whitelistData[budgetTarget].monthlyBudget=monthly; whitelistData[budgetTarget].rangePercent=range; }
+    closeBudgetModal();
+    showToast('✅ Budget saved');
     loadSpend();
-  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 
-document.getElementById('threshModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('budgetModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeBudgetModal(); });
 
 // ── Helpers ──
-function setStatus(type, text) {
+function setStatus(type,text) {
   const dot = document.getElementById('statusDot');
-  dot.className = 'dot';
-  if (type==='live')    dot.classList.add('live');
-  if (type==='loading') dot.classList.add('loading');
-  if (type==='error')   dot.classList.add('error');
-  document.getElementById('statusText').textContent = text;
+  dot.className='dot';
+  if(type==='live') dot.classList.add('live');
+  if(type==='loading') dot.classList.add('loading');
+  if(type==='error') dot.classList.add('error');
+  document.getElementById('statusText').textContent=text;
 }
-
-function fmt(n) { return Number(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function esc(s) { const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML; }
-function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
-
+function fmt(n){return Number(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){const d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML;}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 let toastTimer;
-function showToast(msg) {
+function showToast(msg){
   clearTimeout(toastTimer);
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1e2235;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.3s';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  toastTimer = setTimeout(() => t.style.opacity = '0', 3500);
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1e2235;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  toastTimer=setTimeout(()=>t.style.opacity='0',3500);
 }
 </script>
 </body>
