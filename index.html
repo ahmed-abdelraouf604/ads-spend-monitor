@@ -55,8 +55,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 .stat-box .value.red{color:var(--red);}
 .stat-box .value.yellow{color:var(--yellow);}
 .stat-box .sub{font-size:11px;color:var(--text3);margin-top:4px;}
-
-/* Logins panel */
 .logins-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
 .section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
 .section-title{font-size:13px;font-weight:600;}
@@ -91,8 +89,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 .account-currency{font-size:10px;font-family:var(--mono);color:var(--text2);background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:3px;}
 .panel-loading{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
 .panel-empty{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
-
-/* Table */
 .table-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .table-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;}
 .search-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 12px;border-radius:6px;width:240px;}
@@ -102,6 +98,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 .f-tab.on{background:var(--blue-l);border-color:var(--blue-b);color:var(--blue);}
 .f-tab.red{background:var(--red-l);border-color:#fecaca;color:var(--red);}
 .f-tab.yellow{background:var(--yellow-l);border-color:#fde68a;color:var(--yellow);}
+.f-tab.green{background:var(--green-l);border-color:#a7f3d0;color:var(--green);}
 table{width:100%;border-collapse:collapse;}
 thead tr{background:var(--bg);border-bottom:1px solid var(--border);}
 th{padding:10px 16px;text-align:left;font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;}
@@ -120,8 +117,6 @@ td{padding:12px 16px;font-size:13px;}
 .spend-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
 .spend-main{font-family:var(--mono);font-size:13px;font-weight:600;}
 .spend-sub{font-size:10px;font-family:var(--mono);color:var(--text3);}
-
-/* Pacing badge */
 .pacing-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
 .pacing-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;letter-spacing:0.2px;}
 .pacing-badge.over{background:var(--red-l);color:var(--red);}
@@ -129,19 +124,16 @@ td{padding:12px 16px;font-size:13px;}
 .pacing-badge.ok{background:var(--green-l);color:var(--green);}
 .pacing-badge.none{background:var(--bg);color:var(--text3);border:1px solid var(--border);}
 .pacing-detail{font-size:10px;font-family:var(--mono);color:var(--text2);}
-.pacing-bar-wrap{width:100px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:2px;position:relative;}
+.pacing-bar-wrap{width:100px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:2px;}
 .pacing-bar{height:100%;border-radius:2px;transition:width 0.4s;}
 .pacing-bar.ok{background:var(--green);}
 .pacing-bar.over{background:var(--red);}
 .pacing-bar.under{background:var(--yellow);}
-
 .state-box{padding:60px;text-align:center;}
 .state-box h3{font-size:15px;font-weight:600;margin:12px 0 6px;}
 .state-box p{font-size:12px;color:var(--text2);line-height:1.7;}
 .spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
-/* Budget modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--surface);border-radius:12px;padding:28px;width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);transform:translateY(10px);transition:transform 0.2s;}
@@ -184,7 +176,6 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
-  <!-- DASHBOARD -->
   <div id="pageDashboard" class="content">
     <div class="stats-bar">
       <div class="stat-box"><div class="label">Linked Accounts</div><div class="value" id="cAccounts">—</div><div class="sub" id="cLoginsSub">—</div></div>
@@ -192,15 +183,14 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
       <div class="stat-box"><div class="label">🔴 Overspending</div><div class="value red" id="cOver">—</div><div class="sub">accounts above pace</div></div>
       <div class="stat-box"><div class="label">🟡 Underspending</div><div class="value yellow" id="cUnder">—</div><div class="sub">accounts below pace</div></div>
     </div>
-
     <div class="table-section">
       <div class="table-toolbar">
         <input class="search-input" id="searchBox" type="text" placeholder="🔍  Search account..." oninput="renderTable()"/>
         <div class="filter-tabs">
-          <button class="f-tab on"  id="fAll"   onclick="setFilter('all')">All</button>
-          <button class="f-tab"     id="fOver"  onclick="setFilter('over')">🔴 Overspending</button>
-          <button class="f-tab"     id="fUnder" onclick="setFilter('under')">🟡 Underspending</button>
-          <button class="f-tab"     id="fOk"    onclick="setFilter('ok')">✅ On Track</button>
+          <button class="f-tab on"     id="fAll"   onclick="setFilter('all')">All</button>
+          <button class="f-tab"        id="fOver"  onclick="setFilter('over')">🔴 Overspending</button>
+          <button class="f-tab"        id="fUnder" onclick="setFilter('under')">🟡 Underspending</button>
+          <button class="f-tab"        id="fOk"    onclick="setFilter('ok')">✅ On Track</button>
         </div>
       </div>
       <div id="tableWrap">
@@ -209,7 +199,6 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
-  <!-- MANAGE LOGINS -->
   <div id="pageAccounts" class="content" style="display:none;">
     <div class="logins-section">
       <div class="section-header">
@@ -229,14 +218,13 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
   <footer>Auto-refreshes every 5 minutes · Ads Spend Monitor</footer>
 </main>
 
-<!-- BUDGET MODAL -->
 <div class="modal-overlay" id="budgetModal">
   <div class="modal">
     <h3 id="budgetTitle">Set Budget</h3>
     <div class="sub" id="budgetSub"></div>
     <label>Monthly Budget</label>
     <input type="number" id="budgetMonthly" placeholder="e.g. 3000" oninput="updatePreview()"/>
-    <div class="modal-hint">Enter the total monthly budget for this account</div>
+    <div class="modal-hint">Total monthly budget for this account</div>
     <label>Acceptable Range (%)</label>
     <input type="number" id="budgetRange" placeholder="10" value="10" oninput="updatePreview()"/>
     <div class="modal-hint">Alert if spend is more than ±X% from expected pace (default: 10%)</div>
@@ -249,21 +237,14 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 </div>
 
 <script>
-let allSpend     = [];
-let activeFilter = 'all';
-let logins       = [];
-let discoveredAccounts = {};
-let whitelist    = new Set();
-let whitelistData = {};
-let activeLogin  = null;
-let budgetTarget = null;
-let budgetTargetMtd = 0;
-let refreshTimer = null;
+let allSpend = [], activeFilter = 'all', logins = [];
+let discoveredAccounts = {}, whitelist = new Set(), whitelistData = {};
+let activeLogin = null, budgetTarget = null, budgetTargetMtd = 0, refreshTimer = null;
 
 async function api(path, method='GET', body=null) {
   const opts = { method, headers:{'Content-Type':'application/json'}, credentials:'include' };
   if (body) opts.body = JSON.stringify(body);
-  const res  = await fetch(path, opts);
+  const res = await fetch(path, opts);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
   return data;
@@ -272,7 +253,7 @@ async function api(path, method='GET', body=null) {
 window.onload = () => {
   window.addEventListener('message', e => {
     if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
-    if (e.data?.type === 'AUTH_ERROR')   { showToast('❌ ' + e.data.error, 'error'); }
+    if (e.data?.type === 'AUTH_ERROR')   { showToast('❌ ' + e.data.error); }
   });
   loadLogins();
   loadSpend();
@@ -292,7 +273,7 @@ async function loadLogins() {
     const res = await api('/api/logins');
     logins = res.logins || [];
     document.getElementById('sbLogins').textContent = logins.length;
-    document.getElementById('refreshBtn').disabled  = false;
+    document.getElementById('refreshBtn').disabled = false;
     renderLoginsList();
     if (logins.length > 0) loadSpend();
   } catch(e) { console.error('loadLogins:', e); }
@@ -333,7 +314,7 @@ async function selectLogin(email) {
     }
     const accounts = discoveredAccounts[email] || [];
     const idx = logins.findIndex(l => l.email === email);
-    const ce  = document.getElementById('lc_' + idx);
+    const ce = document.getElementById('lc_' + idx);
     if (ce) ce.textContent = accounts.length + ' account' + (accounts.length!==1?'s':'');
     renderAccountsPanel(email, accounts);
   } catch(e) {
@@ -345,7 +326,6 @@ function renderAccountsPanel(email, accounts) {
   const panel = document.getElementById('accountsPanel');
   document.getElementById('loginStats').textContent = `${whitelist.size} selected`;
   if (!accounts.length) { panel.innerHTML = '<div class="panel-empty">No sub-accounts found.</div>'; return; }
-
   panel.innerHTML = `
     <div class="accounts-panel-header">
       <span class="accounts-panel-title">${accounts.length} accounts</span>
@@ -372,7 +352,7 @@ function renderAccountsPanel(email, accounts) {
 
 function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
   if (whitelist.has(accountId)) { whitelist.delete(accountId); delete whitelistData[accountId]; }
-  else { whitelist.add(accountId); whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget: null, rangePercent: 10 }; }
+  else { whitelist.add(accountId); whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget:null, rangePercent:10 }; }
   renderAccountsPanel(loginEmail, discoveredAccounts[loginEmail]||[]);
 }
 
@@ -396,12 +376,12 @@ async function saveWhitelist() {
     showToast('✅ Selection saved!');
     loadSpend();
     showPage('dashboard');
-  } catch(e) { showToast('❌ '+e.message,'error'); }
+  } catch(e) { showToast('❌ '+e.message); }
 }
 
 async function addLogin() {
   try { const res = await api('/auth/url'); window.open(res.url,'Google Login','width=500,height=620,left=300,top=100'); }
-  catch(e) { showToast('❌ '+e.message,'error'); }
+  catch(e) { showToast('❌ '+e.message); }
 }
 
 async function removeLogin(e, email) {
@@ -415,16 +395,15 @@ async function removeLogin(e, email) {
     [...whitelist].forEach(id => { if (whitelistData[id]?.loginEmail===email){whitelist.delete(id);delete whitelistData[id];}});
     renderLoginsList();
     showToast('Removed '+email);
-  } catch(e) { showToast('❌ '+e.message,'error'); }
+  } catch(e) { showToast('❌ '+e.message); }
 }
 
-// ── Spend ──
 async function loadSpend() {
   setStatus('loading','Fetching...');
   document.getElementById('refreshBtn').disabled = true;
   try {
     const res = await api('/api/spend');
-    allSpend  = res.accounts||[];
+    allSpend = res.accounts||[];
     document.getElementById('sbAccounts').textContent = allSpend.length;
     updateStats();
     renderTable();
@@ -441,17 +420,16 @@ async function loadSpend() {
 function updateStats() {
   const over  = allSpend.filter(a => a.pacing?.status==='overspending').length;
   const under = allSpend.filter(a => a.pacing?.status==='underspending').length;
-  const totalDaily = allSpend.reduce((s,a)=>s+(a.dailySpend||0),0);
   const loginCount = [...new Set(allSpend.map(a=>a.loginEmail))].length;
   document.getElementById('cAccounts').textContent  = allSpend.length;
   document.getElementById('cLoginsSub').textContent = loginCount+' login'+(loginCount!==1?'s':'');
-  document.getElementById('cDaily').textContent     = fmt(totalDaily);
+  document.getElementById('cDaily').textContent     = fmt(allSpend.reduce((s,a)=>s+(a.dailySpend||0),0));
   document.getElementById('cOver').textContent      = over;
   document.getElementById('cUnder').textContent     = under;
 }
 
 function renderTable() {
-  const search   = document.getElementById('searchBox').value.toLowerCase();
+  const search = document.getElementById('searchBox').value.toLowerCase();
   const filtered = allSpend.filter(a => {
     const m = a.accountName.toLowerCase().includes(search)||a.accountId.includes(search);
     if (!m) return false;
@@ -467,89 +445,60 @@ function renderTable() {
   }
 
   const today = new Date().getDate();
-
   const rows = filtered.map(a => {
-    const p    = a.pacing;
+    const p = a.pacing;
     const curr = a.currency||'';
-    const rowCls = p?.status==='overspending' ? 'row-over' : p?.status==='underspending' ? 'row-under' : '';
-
-    // Pacing badge
+    const rowCls = p?.status==='overspending'?'row-over':p?.status==='underspending'?'row-under':'';
     let badge, detail, barPct, barCls;
     if (!p) {
-      badge  = `<span class="pacing-badge none">No budget set</span>`;
+      badge = `<span class="pacing-badge none">No budget set</span>`;
       detail = '';
     } else {
-      const icon = p.status==='overspending' ? '🔴' : p.status==='underspending' ? '🟡' : '✅';
-      const cls  = p.status==='overspending' ? 'over' : p.status==='underspending' ? 'under' : 'ok';
-      const label = p.status==='overspending' ? `${p.absVariance}% over pace` : p.status==='underspending' ? `${p.absVariance}% under pace` : `On track (${p.variance>0?'+':''}${p.variance}%)`;
+      const icon  = p.status==='overspending'?'🔴':p.status==='underspending'?'🟡':'✅';
+      const cls   = p.status==='overspending'?'over':p.status==='underspending'?'under':'ok';
+      const label = p.status==='overspending'?`${p.absVariance}% over pace`:p.status==='underspending'?`${p.absVariance}% under pace`:`On track (${p.variance>0?'+':''}${p.variance}%)`;
       badge  = `<span class="pacing-badge ${cls}">${icon} ${label}</span>`;
       detail = `<div class="pacing-detail">Expected: ${curr} ${fmt(p.expected)} · Actual: ${curr} ${fmt(a.mtdSpend)}</div>`;
-      barPct = Math.min((a.mtdSpend/p.expected)*100, 150);
+      barPct = Math.min((a.mtdSpend/p.expected)*100,150);
       barCls = cls;
     }
-
     const budgetLine = a.monthlyBudget
       ? `<div class="spend-sub">Budget: ${curr} ${fmt(a.monthlyBudget)} · Day ${today}/30.4</div>`
       : `<div class="spend-sub" style="color:var(--yellow)">⚠ No budget set</div>`;
 
     return `<tr class="${rowCls}">
-      <td>
-        <div class="acc-name-cell">${esc(a.accountName)}</div>
-        <div class="acc-id-cell">${esc(a.accountId)}</div>
-        <div class="acc-src-cell">via ${esc(a.loginEmail||'')}</div>
-      </td>
-      <td class="r">
-        <div class="spend-cell">
-          <span class="spend-main">${curr} ${fmt(a.dailySpend)}</span>
-          <span class="spend-sub">today</span>
-        </div>
-      </td>
-      <td class="r">
-        <div class="spend-cell">
-          <span class="spend-main">${curr} ${fmt(a.mtdSpend)}</span>
-          ${budgetLine}
-        </div>
-      </td>
-      <td class="r">
-        <div class="pacing-cell">
-          ${badge}
-          ${detail}
-          ${p?`<div class="pacing-bar-wrap"><div class="pacing-bar ${barCls}" style="width:${Math.min(barPct,100)}%"></div></div>`:''}
-          <button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;margin-top:2px;" onclick="openBudgetFromTable('${a.accountId}','${esc(a.accountName)}',${a.mtdSpend},${a.monthlyBudget||0},${a.rangePercent||10})">
-            ${a.monthlyBudget?'Edit budget':'Set budget'}
-          </button>
-        </div>
-      </td>
+      <td><div class="acc-name-cell">${esc(a.accountName)}</div><div class="acc-id-cell">${esc(a.accountId)}</div><div class="acc-src-cell">via ${esc(a.loginEmail||'')}</div></td>
+      <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.dailySpend)}</span><span class="spend-sub">today</span></div></td>
+      <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.mtdSpend)}</span>${budgetLine}</div></td>
+      <td class="r"><div class="pacing-cell">
+        ${badge}${detail}
+        ${p?`<div class="pacing-bar-wrap"><div class="pacing-bar ${barCls}" style="width:${Math.min(barPct,100)}%"></div></div>`:''}
+        <button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;margin-top:2px;" onclick="openBudgetFromTable('${a.accountId}','${esc(a.accountName)}',${a.mtdSpend},${a.monthlyBudget||0},${a.rangePercent||10})">${a.monthlyBudget?'Edit budget':'Set budget'}</button>
+      </div></td>
     </tr>`;
   }).join('');
 
   document.getElementById('tableWrap').innerHTML = `
     <table>
-      <thead><tr>
-        <th>Account</th>
-        <th class="r">Daily Spend</th>
-        <th class="r">MTD Spend</th>
-        <th class="r">Pacing Status</th>
-      </tr></thead>
+      <thead><tr><th>Account</th><th class="r">Daily Spend</th><th class="r">MTD Spend</th><th class="r">Pacing Status</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
 
 function setFilter(f) {
   activeFilter = f;
-  document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('on','red','yellow'));
+  document.querySelectorAll('.f-tab').forEach(b=>b.classList.remove('on','red','yellow','green'));
   const btn = document.getElementById('f'+cap(f));
   if (f==='over') btn.classList.add('red');
   else if (f==='under') btn.classList.add('yellow');
+  else if (f==='ok') btn.classList.add('green');
   else btn.classList.add('on');
   renderTable();
 }
 
-// ── Budget Modal ──
 function openBudget(e, accountId, accountName, mtdSpend) {
   e.stopPropagation();
-  budgetTarget  = accountId;
-  budgetTargetMtd = mtdSpend;
+  budgetTarget = accountId; budgetTargetMtd = mtdSpend;
   document.getElementById('budgetTitle').textContent = accountName;
   document.getElementById('budgetSub').textContent   = accountId;
   const d = whitelistData[accountId]||{};
@@ -560,8 +509,7 @@ function openBudget(e, accountId, accountName, mtdSpend) {
 }
 
 function openBudgetFromTable(accountId, accountName, mtdSpend, budget, range) {
-  budgetTarget    = accountId;
-  budgetTargetMtd = mtdSpend;
+  budgetTarget = accountId; budgetTargetMtd = mtdSpend;
   document.getElementById('budgetTitle').textContent = accountName;
   document.getElementById('budgetSub').textContent   = accountId;
   document.getElementById('budgetMonthly').value = budget||'';
@@ -585,12 +533,10 @@ function updatePreview() {
   if (variance > range)       statusLine = `<span style="color:var(--red);font-weight:600">🔴 Overspending by ${Math.abs(variance).toFixed(1)}%</span>`;
   else if (variance < -range) statusLine = `<span style="color:var(--yellow);font-weight:600">🟡 Underspending by ${Math.abs(variance).toFixed(1)}%</span>`;
   else                        statusLine = `<span style="color:var(--green);font-weight:600">✅ On track (${variance>0?'+':''}${variance.toFixed(1)}%)</span>`;
-  prev.innerHTML = `
-    Day <strong>${today}</strong> of month &nbsp;|&nbsp; Budget: <strong>${fmt(budget)}</strong><br>
+  prev.innerHTML = `Day <strong>${today}</strong> of month &nbsp;|&nbsp; Budget: <strong>${fmt(budget)}</strong><br>
     Expected to date: <strong>${fmt(expected)}</strong> &nbsp;(${today}/30.4 × ${fmt(budget)})<br>
     Acceptable range: <strong>${fmt(lower)}</strong> – <strong>${fmt(upper)}</strong> (±${range}%)<br>
-    Current MTD: <strong>${fmt(mtd)}</strong><br><br>
-    Status: ${statusLine}`;
+    Current MTD spend: <strong>${fmt(mtd)}</strong><br><br>Status: ${statusLine}`;
 }
 
 function closeBudgetModal() { document.getElementById('budgetModal').classList.remove('open'); }
@@ -604,12 +550,11 @@ async function saveBudget() {
     closeBudgetModal();
     showToast('✅ Budget saved');
     loadSpend();
-  } catch(e) { showToast('❌ '+e.message,'error'); }
+  } catch(e) { showToast('❌ '+e.message); }
 }
 
 document.getElementById('budgetModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeBudgetModal(); });
 
-// ── Helpers ──
 function setStatus(type,text) {
   const dot = document.getElementById('statusDot');
   dot.className='dot';
