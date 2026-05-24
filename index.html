@@ -239,6 +239,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 <script>
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}, whitelist = new Set(), whitelistData = {};
+let removedAccounts = new Set(); // track explicitly deselected accounts
 let activeLogin = null, budgetTarget = null, budgetTargetMtd = 0, refreshTimer = null;
 
 async function api(path, method='GET', body=null) {
@@ -255,9 +256,30 @@ window.onload = () => {
     if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
     if (e.data?.type === 'AUTH_ERROR')   { showToast('❌ ' + e.data.error); }
   });
+  loadWhitelistFromDB();
   loadLogins();
   loadSpend();
 };
+
+// Load existing whitelist from DB so checkboxes reflect saved state
+async function loadWhitelistFromDB() {
+  try {
+    const res = await api('/api/whitelist');
+    (res.accounts || []).forEach(a => {
+      const id = a.accountId || a.account_id;
+      whitelist.add(id);
+      whitelistData[id] = {
+        accountId:     id,
+        accountName:   a.accountName || a.account_name,
+        mccId:         a.mccId || a.mcc_id,
+        loginEmail:    a.loginEmail || a.login_email,
+        currency:      a.currency || '',
+        monthlyBudget: a.monthlyBudget || a.monthly_budget || null,
+        rangePercent:  a.rangePercent  || a.range_percent  || 10
+      };
+    });
+  } catch(e) { console.log('Could not load whitelist:', e.message); }
+}
 
 function showPage(page) {
   ['dashboard','accounts'].forEach(p => {
@@ -351,8 +373,15 @@ function renderAccountsPanel(email, accounts) {
 }
 
 function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
-  if (whitelist.has(accountId)) { whitelist.delete(accountId); delete whitelistData[accountId]; }
-  else { whitelist.add(accountId); whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget:null, rangePercent:10 }; }
+  if (whitelist.has(accountId)) {
+    whitelist.delete(accountId);
+    delete whitelistData[accountId];
+    removedAccounts.add(accountId); // track as explicitly removed
+  } else {
+    whitelist.add(accountId);
+    removedAccounts.delete(accountId); // no longer removed
+    whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget:null, rangePercent:10 };
+  }
   renderAccountsPanel(loginEmail, discoveredAccounts[loginEmail]||[]);
 }
 
@@ -371,8 +400,10 @@ function deselectAll(email) {
 
 async function saveWhitelist() {
   const accounts = Array.from(whitelist).map(id => whitelistData[id]).filter(Boolean);
+  const removed  = Array.from(removedAccounts);
   try {
-    await api('/api/whitelist','POST',{ accounts });
+    await api('/api/whitelist','POST',{ accounts, removed });
+    removedAccounts.clear(); // reset after successful save
     showToast('✅ Selection saved!');
     loadSpend();
     showPage('dashboard');
