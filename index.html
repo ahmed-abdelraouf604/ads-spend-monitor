@@ -232,6 +232,13 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
       <div class="stat-box"><div class="label">🔴 Overspending</div><div class="value red" id="cOver">—</div><div class="sub">accounts above pace</div></div>
       <div class="stat-box"><div class="label">🟡 Underspending</div><div class="value yellow" id="cUnder">—</div><div class="sub">accounts below pace</div></div>
     </div>
+    <!-- Bulk budget bar — shows when rows are checked -->
+    <div id="dashBulkBar" style="display:none;background:var(--blue-l);border:1px solid var(--blue-b);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px;">
+      <span id="dashBulkText" style="font-size:12px;color:var(--blue);font-weight:500;"></span>
+      <button class="btn btn-primary btn-sm" onclick="openBulkBudgetDash()">💰 Set Budget for Selected</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearDashSelection()">✕ Clear</button>
+    </div>
+
     <div class="table-section">
       <div class="table-toolbar">
         <input class="search-input" id="searchBox" type="text" placeholder="🔍  Search account..." oninput="renderTable()"/>
@@ -255,7 +262,6 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
         <div><div class="section-title">Google Account Logins</div><div class="section-sub">Connect accounts · Select sub-accounts · Set budgets</div></div>
         <div class="section-actions">
           <span id="selectionCount" style="font-size:11px;color:var(--text2);font-family:var(--mono)"></span>
-          <button class="btn btn-ghost btn-sm" id="bulkBudgetBtn" onclick="openBulkBudget()" style="display:none;">💰 Set Budget for Selected</button>
           <button class="btn btn-primary btn-sm" onclick="saveWhitelist()">💾 Save Selection</button>
         </div>
       </div>
@@ -266,11 +272,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 
         <!-- Right: MCC tree -->
         <div class="mcc-panel" id="mccPanel">
-          <div class="bulk-bar hidden" id="bulkBar">
-            <span id="bulkBarText"></span>
-            <button class="btn btn-primary btn-sm" onclick="openBulkBudget()">💰 Set Budget</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">Clear</button>
-          </div>
+
           <div id="mccTree"><div class="panel-empty">← Select a login to see its MCC structure</div></div>
         </div>
       </div>
@@ -309,7 +311,7 @@ let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
 let whitelist = new Set(), whitelistData = {};
 let removedAccounts = new Set();
-let bulkSelected = new Set(); // accountIds selected for bulk budget
+let dashSelected = new Set(); // accountIds selected for bulk budget on dashboard
 let activeLogin = null;
 let budgetTarget = null; // single accountId or 'bulk'
 let budgetTargetMtd = 0;
@@ -527,17 +529,15 @@ function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
 function updateSelectionCount() {
   const total = whitelist.size;
   document.getElementById('selectionCount').textContent = total ? `${total} accounts selected` : '';
-  const bulkBtn = document.getElementById('bulkBudgetBtn');
-  bulkBtn.style.display = total >= 2 ? '' : 'none';
-  if (total >= 2) bulkBtn.textContent = `💰 Set Budget for ${total} selected`;
+}
 
-  // bulk bar
-  const bar = document.getElementById('bulkBar');
-  if (bulkSelected.size >= 2) {
-    bar.classList.remove('hidden');
-    document.getElementById('bulkBarText').textContent = `${bulkSelected.size} accounts selected for bulk budget`;
+function updateDashBulkBar() {
+  const bar = document.getElementById('dashBulkBar');
+  if (dashSelected.size >= 1) {
+    bar.style.display = 'flex';
+    document.getElementById('dashBulkText').textContent = `${dashSelected.size} account${dashSelected.size!==1?'s':''} selected`;
   } else {
-    bar.classList.add('hidden');
+    bar.style.display = 'none';
   }
 }
 
@@ -637,7 +637,10 @@ function renderTable() {
     const budgetLine = a.monthlyBudget
       ? `<div class="spend-sub">Budget: ${curr} ${fmt(a.monthlyBudget)} · Day ${today}/30.4</div>`
       : `<div class="spend-sub" style="color:var(--yellow)">⚠ No budget set</div>`;
+    const cleanId = a.accountId.replace(/-/g,'');
+    const isChecked = dashSelected.has(cleanId);
     return `<tr class="${rowCls}">
+      <td style="width:36px;"><input type="checkbox" ${isChecked?'checked':''} onchange="toggleDashRow('${cleanId}')" style="cursor:pointer;width:14px;height:14px;accent-color:var(--blue);"></td>
       <td><div class="acc-name-cell">${esc(a.accountName)}</div><div class="acc-id-cell">${esc(a.accountId)}</div><div class="acc-src-cell">via ${esc(a.loginEmail||'')}</div></td>
       <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.dailySpend)}</span><span class="spend-sub">today</span></div></td>
       <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.mtdSpend)}</span>${budgetLine}</div></td>
@@ -648,9 +651,16 @@ function renderTable() {
       </div></td>
     </tr>`;
   }).join('');
+  // Select-all checkbox state
+  const allChecked = filtered.length > 0 && filtered.every(a => dashSelected.has(a.accountId.replace(/-/g,'')));
   document.getElementById('tableWrap').innerHTML = `
-    <table><thead><tr><th>Account</th><th class="r">Daily Spend</th><th class="r">MTD Spend</th><th class="r">Pacing Status</th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
+    <table>
+      <thead><tr>
+        <th style="width:36px;"><input type="checkbox" ${allChecked?'checked':''} onchange="toggleSelectAll(this)" style="cursor:pointer;width:14px;height:14px;accent-color:var(--blue);"></th>
+        <th>Account</th><th class="r">Daily Spend</th><th class="r">MTD Spend</th><th class="r">Pacing Status</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 function setFilter(f) {
@@ -746,7 +756,7 @@ async function saveBudget() {
 
   if (isBulkMode) {
     // Apply to all selected accounts
-    const ids = Array.from(whitelist);
+    const ids = Array.from(dashSelected);
     let saved = 0;
     for (const id of ids) {
       try {
@@ -755,6 +765,8 @@ async function saveBudget() {
         saved++;
       } catch(e) { console.error('Budget error for', id, e.message); }
     }
+    dashSelected.clear();
+    updateDashBulkBar();
     closeBudgetModal();
     showToast(`✅ Budget saved for ${saved} accounts`);
     if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]);
@@ -771,7 +783,63 @@ async function saveBudget() {
   }
 }
 
-function clearBulkSelection() { bulkSelected.clear(); updateSelectionCount(); if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]); }
+function clearBulkSelection() { if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]); }
+
+function toggleDashRow(accountId) {
+  if (dashSelected.has(accountId)) dashSelected.delete(accountId);
+  else dashSelected.add(accountId);
+  updateDashBulkBar();
+  // re-render just checkboxes without full re-render
+  document.querySelectorAll('#tableWrap tbody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    const onChange = cb.getAttribute('onchange');
+    if (onChange && onChange.includes(accountId)) cb.checked = dashSelected.has(accountId);
+  });
+  // update select-all
+  const allCbs = document.querySelectorAll('#tableWrap tbody input[type=checkbox]');
+  const headerCb = document.querySelector('#tableWrap thead input[type=checkbox]');
+  if (headerCb) headerCb.checked = allCbs.length > 0 && [...allCbs].every(c => c.checked);
+}
+
+function toggleSelectAll(cb) {
+  const allCbs = document.querySelectorAll('#tableWrap tbody input[type=checkbox]');
+  allCbs.forEach(c => {
+    const match = c.getAttribute('onchange')?.match(/toggleDashRow\('([^']+)'\)/);
+    if (match) {
+      if (cb.checked) dashSelected.add(match[1]);
+      else dashSelected.delete(match[1]);
+      c.checked = cb.checked;
+    }
+  });
+  updateDashBulkBar();
+}
+
+function clearDashSelection() {
+  dashSelected.clear();
+  updateDashBulkBar();
+  renderTable();
+}
+
+function openBulkBudgetDash() {
+  if (dashSelected.size === 0) return;
+  isBulkMode = true;
+  budgetTarget = 'bulk';
+  budgetTargetMtd = 0;
+  const ids = Array.from(dashSelected);
+  document.getElementById('budgetTitle').textContent = `Set Budget for ${ids.length} Accounts`;
+  document.getElementById('budgetSub').textContent = 'Applied to all selected accounts. Each can be edited individually after.';
+  document.getElementById('bulkAccountsList').style.display = '';
+  document.getElementById('bulkAccountsListInner').innerHTML =
+    ids.map(id => {
+      const acc = allSpend.find(a => a.accountId.replace(/-/g,'') === id);
+      return `<div class="bulk-acc-item">• ${esc(acc?.accountName||id)} <span style="color:var(--text3)">${id}</span></div>`;
+    }).join('');
+  document.getElementById('budgetMonthly').value = '';
+  document.getElementById('budgetRange').value = 10;
+  updatePreview();
+  document.getElementById('budgetModal').classList.add('open');
+}
 
 document.getElementById('budgetModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeBudgetModal(); });
 
