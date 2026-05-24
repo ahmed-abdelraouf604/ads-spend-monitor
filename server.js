@@ -126,8 +126,9 @@ app.get('/api/accounts', async (req, res) => {
         const authClient = await getAuthClient(login);
         const mccs = await listAccessibleCustomers(authClient);
         for (const mccId of mccs) {
+          const mccName = await getMccName(authClient, mccId);
           const accounts = await listSubAccounts(authClient, mccId);
-          results.push(...accounts.map(a => ({ ...a, loginEmail: login.email, mccId })));
+          results.push(...accounts.map(a => ({ ...a, loginEmail: login.email, mccId, mccName })));
         }
       } catch(e) { console.error('Account error for', login.email, e.message); }
     }
@@ -257,6 +258,20 @@ async function listAccessibleCustomers(authClient) {
   const data = await res.json();
   if (!res.ok) { console.error('listAccessibleCustomers:', JSON.stringify(data)); return []; }
   return (data.resourceNames || []).map(r => r.replace('customers/', ''));
+}
+
+async function getMccName(authClient, mccId) {
+  try {
+    const token    = (await authClient.getAccessToken()).token;
+    const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+    const res = await fetch(`${ADS_BASE}/customers/${mccId}/googleAds:search`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': mccId, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'SELECT customer.descriptive_name FROM customer LIMIT 1' })
+    });
+    const data = await res.json();
+    return data.results?.[0]?.customer?.descriptiveName || ('MCC ' + mccId);
+  } catch(e) { return 'MCC ' + mccId; }
 }
 
 async function listSubAccounts(authClient, mccId) {
