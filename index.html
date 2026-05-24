@@ -46,6 +46,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 .btn-primary:hover{background:#1d4ed8;}
 .btn-ghost{background:none;border:1px solid var(--border2);color:var(--text2);}
 .btn-ghost:hover{border-color:var(--blue);color:var(--blue);}
+.btn-sm{padding:4px 10px;font-size:11px;}
 .btn:disabled{opacity:0.4;cursor:not-allowed;}
 .content{padding:24px 28px;flex:1;}
 .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -55,40 +56,83 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 .stat-box .value.red{color:var(--red);}
 .stat-box .value.yellow{color:var(--yellow);}
 .stat-box .sub{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* ── Manage Logins Layout ── */
 .logins-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
-.section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;}
 .section-title{font-size:13px;font-weight:600;}
 .section-sub{font-size:11px;color:var(--text2);margin-top:2px;}
-.logins-grid{display:grid;grid-template-columns:260px 1fr;min-height:200px;}
-.logins-list{border-right:1px solid var(--border);padding:8px 0;}
+.section-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+.logins-layout{display:grid;grid-template-columns:240px 1fr;min-height:300px;}
+
+/* ── Left: Login list ── */
+.logins-list{border-right:1px solid var(--border);padding:8px 0;overflow-y:auto;max-height:600px;}
 .login-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.12s;border-left:3px solid transparent;}
 .login-item:hover{background:var(--bg);}
 .login-item.active{background:var(--blue-l);border-left-color:var(--blue);}
 .login-item.active .login-email{color:var(--blue);}
-.login-avatar{width:32px;height:32px;border-radius:50%;background:var(--blue-l);border:1px solid var(--blue-b);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--blue);flex-shrink:0;overflow:hidden;}
+.login-avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-l);border:1px solid var(--blue-b);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--blue);flex-shrink:0;overflow:hidden;}
 .login-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-.login-email{font-size:12px;font-weight:500;color:var(--text);}
+.login-email{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .login-count{font-size:10px;color:var(--text3);margin-top:1px;}
-.remove-login{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:3px 6px;border-radius:4px;opacity:0;transition:all 0.15s;}
+.remove-login{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;opacity:0;transition:all 0.15s;flex-shrink:0;}
 .login-item:hover .remove-login{opacity:1;}
 .remove-login:hover{color:var(--red);background:var(--red-l);}
 .add-login-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;font-size:12px;color:var(--blue);font-weight:500;transition:background 0.12s;border:none;background:none;width:100%;text-align:left;border-top:1px solid var(--border);}
 .add-login-btn:hover{background:var(--blue-l);}
-.accounts-panel{padding:16px;overflow-y:auto;max-height:400px;}
-.accounts-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.accounts-panel-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;}
-.account-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;transition:background 0.12s;cursor:pointer;}
-.account-row:hover{background:var(--bg);}
-.account-row.selected{background:var(--blue-l);}
-.account-check{width:16px;height:16px;border-radius:4px;border:2px solid var(--border2);background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;position:relative;}
-.account-row.selected .account-check{background:var(--blue);border-color:var(--blue);}
-.account-row.selected .account-check::after{content:'✓';font-size:10px;color:#fff;font-weight:700;position:absolute;}
-.account-info{flex:1;min-width:0;}
-.account-name-sm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.account-id-sm{font-size:10px;font-family:var(--mono);color:var(--text3);}
-.account-currency{font-size:10px;font-family:var(--mono);color:var(--text2);background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:3px;}
+
+/* ── Right: MCC Tree ── */
+.mcc-panel{padding:0;overflow-y:auto;max-height:600px;}
+
+/* Bulk action bar */
+.bulk-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--blue-l);border-bottom:1px solid var(--blue-b);font-size:12px;color:var(--blue);font-weight:500;}
+.bulk-bar.hidden{display:none;}
+
+/* MCC group */
+.mcc-group{border-bottom:1px solid var(--border);}
+.mcc-group:last-child{border-bottom:none;}
+
+.mcc-header{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;background:var(--bg);transition:background 0.12s;user-select:none;}
+.mcc-header:hover{background:#eef0f8;}
+
+.mcc-checkbox{width:15px;height:15px;border-radius:3px;border:2px solid var(--border2);background:#fff;flex-shrink:0;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.mcc-checkbox.checked{background:var(--blue);border-color:var(--blue);}
+.mcc-checkbox.partial{background:#fff;border-color:var(--blue);}
+.mcc-checkbox.checked::after{content:'✓';font-size:9px;color:#fff;font-weight:700;}
+.mcc-checkbox.partial::after{content:'−';font-size:11px;color:var(--blue);font-weight:700;line-height:1;}
+
+.mcc-chevron{font-size:10px;color:var(--text3);transition:transform 0.2s;flex-shrink:0;}
+.mcc-chevron.open{transform:rotate(90deg);}
+
+.mcc-icon{font-size:14px;flex-shrink:0;}
+.mcc-name{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mcc-id{font-size:10px;font-family:var(--mono);color:var(--text3);}
+.mcc-count{font-size:10px;font-family:var(--mono);color:var(--text2);background:var(--border);padding:1px 6px;border-radius:10px;flex-shrink:0;}
+
+/* Account rows inside MCC */
+.mcc-accounts{padding:4px 0 8px 0;}
+.mcc-accounts.collapsed{display:none;}
+
+.acc-row{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 40px;transition:background 0.1s;cursor:pointer;}
+.acc-row:hover{background:var(--bg);}
+.acc-row.selected{background:var(--blue-l);}
+
+.acc-check{width:15px;height:15px;border-radius:3px;border:2px solid var(--border2);background:#fff;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.acc-row.selected .acc-check{background:var(--blue);border-color:var(--blue);}
+.acc-row.selected .acc-check::after{content:'✓';font-size:9px;color:#fff;font-weight:700;}
+
+.acc-icon{font-size:12px;flex-shrink:0;}
+.acc-info{flex:1;min-width:0;}
+.acc-name-t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.acc-id-t{font-size:10px;font-family:var(--mono);color:var(--text3);}
+.acc-curr{font-size:10px;font-family:var(--mono);color:var(--text2);background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:3px;flex-shrink:0;}
+.acc-budget-tag{font-size:9px;font-family:var(--mono);color:var(--green);background:var(--green-l);padding:1px 5px;border-radius:3px;flex-shrink:0;}
+
 .panel-loading{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
 .panel-empty{padding:40px;text-align:center;color:var(--text3);font-size:12px;}
+
+/* ── Dashboard table ── */
 .table-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .table-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;}
 .search-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 12px;border-radius:6px;width:240px;}
@@ -118,7 +162,7 @@ td{padding:12px 16px;font-size:13px;}
 .spend-main{font-family:var(--mono);font-size:13px;font-weight:600;}
 .spend-sub{font-size:10px;font-family:var(--mono);color:var(--text3);}
 .pacing-cell{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
-.pacing-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;letter-spacing:0.2px;}
+.pacing-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;}
 .pacing-badge.over{background:var(--red-l);color:var(--red);}
 .pacing-badge.under{background:var(--yellow-l);color:var(--yellow);}
 .pacing-badge.ok{background:var(--green-l);color:var(--green);}
@@ -134,6 +178,8 @@ td{padding:12px 16px;font-size:13px;}
 .state-box p{font-size:12px;color:var(--text2);line-height:1.7;}
 .spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Modals ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s;}
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--surface);border-radius:12px;padding:28px;width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);transform:translateY(10px);transition:transform 0.2s;}
@@ -148,6 +194,8 @@ td{padding:12px 16px;font-size:13px;}
 .modal-preview{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:14px;font-size:12px;font-family:var(--mono);color:var(--text2);line-height:1.8;}
 .modal-preview strong{color:var(--text);}
 .modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
+.bulk-accounts-list{max-height:120px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:4px;}
+.bulk-acc-item{font-size:11px;font-family:var(--mono);color:var(--text2);padding:2px 0;}
 footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface);}
 </style>
 </head>
@@ -176,6 +224,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
+  <!-- DASHBOARD -->
   <div id="pageDashboard" class="content">
     <div class="stats-bar">
       <div class="stat-box"><div class="label">Linked Accounts</div><div class="value" id="cAccounts">—</div><div class="sub" id="cLoginsSub">—</div></div>
@@ -187,10 +236,10 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
       <div class="table-toolbar">
         <input class="search-input" id="searchBox" type="text" placeholder="🔍  Search account..." oninput="renderTable()"/>
         <div class="filter-tabs">
-          <button class="f-tab on"     id="fAll"   onclick="setFilter('all')">All</button>
-          <button class="f-tab"        id="fOver"  onclick="setFilter('over')">🔴 Overspending</button>
-          <button class="f-tab"        id="fUnder" onclick="setFilter('under')">🟡 Underspending</button>
-          <button class="f-tab"        id="fOk"    onclick="setFilter('ok')">✅ On Track</button>
+          <button class="f-tab on"  id="fAll"   onclick="setFilter('all')">All</button>
+          <button class="f-tab"     id="fOver"  onclick="setFilter('over')">🔴 Overspending</button>
+          <button class="f-tab"     id="fUnder" onclick="setFilter('under')">🟡 Underspending</button>
+          <button class="f-tab"     id="fOk"    onclick="setFilter('ok')">✅ On Track</button>
         </div>
       </div>
       <div id="tableWrap">
@@ -199,18 +248,31 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
+  <!-- MANAGE LOGINS -->
   <div id="pageAccounts" class="content" style="display:none;">
     <div class="logins-section">
       <div class="section-header">
-        <div><div class="section-title">Google Account Logins</div><div class="section-sub">Connect Google accounts to access their MCC structures</div></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div id="loginStats" style="font-size:11px;color:var(--text2);font-family:var(--mono)"></div>
-          <button class="btn btn-primary" onclick="saveWhitelist()">💾 Save Selection</button>
+        <div><div class="section-title">Google Account Logins</div><div class="section-sub">Connect accounts · Select sub-accounts · Set budgets</div></div>
+        <div class="section-actions">
+          <span id="selectionCount" style="font-size:11px;color:var(--text2);font-family:var(--mono)"></span>
+          <button class="btn btn-ghost btn-sm" id="bulkBudgetBtn" onclick="openBulkBudget()" style="display:none;">💰 Set Budget for Selected</button>
+          <button class="btn btn-primary btn-sm" onclick="saveWhitelist()">💾 Save Selection</button>
         </div>
       </div>
-      <div class="logins-grid">
+
+      <div class="logins-layout">
+        <!-- Left: login accounts list -->
         <div class="logins-list" id="loginsList"><div class="panel-loading">Loading...</div></div>
-        <div class="accounts-panel" id="accountsPanel"><div class="panel-empty">← Select a login to see its accounts</div></div>
+
+        <!-- Right: MCC tree -->
+        <div class="mcc-panel" id="mccPanel">
+          <div class="bulk-bar hidden" id="bulkBar">
+            <span id="bulkBarText"></span>
+            <button class="btn btn-primary btn-sm" onclick="openBulkBudget()">💰 Set Budget</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">Clear</button>
+          </div>
+          <div id="mccTree"><div class="panel-empty">← Select a login to see its MCC structure</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -218,16 +280,21 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
   <footer>Auto-refreshes every 5 minutes · Ads Spend Monitor</footer>
 </main>
 
+<!-- BUDGET MODAL (single or bulk) -->
 <div class="modal-overlay" id="budgetModal">
   <div class="modal">
     <h3 id="budgetTitle">Set Budget</h3>
     <div class="sub" id="budgetSub"></div>
+    <div id="bulkAccountsList" style="display:none;">
+      <div class="bulk-accounts-list" id="bulkAccountsListInner"></div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:14px;">Budget will be applied to all accounts above</div>
+    </div>
     <label>Monthly Budget</label>
     <input type="number" id="budgetMonthly" placeholder="e.g. 3000" oninput="updatePreview()"/>
     <div class="modal-hint">Total monthly budget for this account</div>
     <label>Acceptable Range (%)</label>
     <input type="number" id="budgetRange" placeholder="10" value="10" oninput="updatePreview()"/>
-    <div class="modal-hint">Alert if spend is more than ±X% from expected pace (default: 10%)</div>
+    <div class="modal-hint">Alert if ±X% from expected pace (default: 10%)</div>
     <div class="modal-preview" id="budgetPreview">Enter a monthly budget to see the pacing preview.</div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeBudgetModal()">Cancel</button>
@@ -237,11 +304,19 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 </div>
 
 <script>
+// ── State ──
 let allSpend = [], activeFilter = 'all', logins = [];
-let discoveredAccounts = {}, whitelist = new Set(), whitelistData = {};
-let removedAccounts = new Set(); // track explicitly deselected accounts
-let activeLogin = null, budgetTarget = null, budgetTargetMtd = 0, refreshTimer = null;
+let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
+let whitelist = new Set(), whitelistData = {};
+let removedAccounts = new Set();
+let bulkSelected = new Set(); // accountIds selected for bulk budget
+let activeLogin = null;
+let budgetTarget = null; // single accountId or 'bulk'
+let budgetTargetMtd = 0;
+let refreshTimer = null;
+let collapsedMccs = new Set(); // track collapsed MCC groups
 
+// ── API ──
 async function api(path, method='GET', body=null) {
   const opts = { method, headers:{'Content-Type':'application/json'}, credentials:'include' };
   if (body) opts.body = JSON.stringify(body);
@@ -251,6 +326,7 @@ async function api(path, method='GET', body=null) {
   return data;
 }
 
+// ── Init ──
 window.onload = () => {
   window.addEventListener('message', e => {
     if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
@@ -261,7 +337,6 @@ window.onload = () => {
   loadSpend();
 };
 
-// Load existing whitelist from DB so checkboxes reflect saved state
 async function loadWhitelistFromDB() {
   try {
     const res = await api('/api/whitelist');
@@ -269,11 +344,9 @@ async function loadWhitelistFromDB() {
       const id = a.accountId || a.account_id;
       whitelist.add(id);
       whitelistData[id] = {
-        accountId:     id,
-        accountName:   a.accountName || a.account_name,
-        mccId:         a.mccId || a.mcc_id,
-        loginEmail:    a.loginEmail || a.login_email,
-        currency:      a.currency || '',
+        accountId: id, accountName: a.accountName || a.account_name,
+        mccId: a.mccId || a.mcc_id, loginEmail: a.loginEmail || a.login_email,
+        currency: a.currency || '',
         monthlyBudget: a.monthlyBudget || a.monthly_budget || null,
         rangePercent:  a.rangePercent  || a.range_percent  || 10
       };
@@ -281,6 +354,7 @@ async function loadWhitelistFromDB() {
   } catch(e) { console.log('Could not load whitelist:', e.message); }
 }
 
+// ── Navigation ──
 function showPage(page) {
   ['dashboard','accounts'].forEach(p => {
     document.getElementById('page' + cap(p)).style.display = p === page ? '' : 'none';
@@ -290,6 +364,7 @@ function showPage(page) {
   if (page === 'accounts') renderLoginsList();
 }
 
+// ── Logins ──
 async function loadLogins() {
   try {
     const res = await api('/api/logins');
@@ -304,15 +379,18 @@ async function loadLogins() {
 function renderLoginsList() {
   const el = document.getElementById('loginsList');
   if (!logins.length) {
-    el.innerHTML = `<div class="panel-empty">No accounts connected yet.</div><button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
+    el.innerHTML = `<div class="panel-empty" style="padding:20px;font-size:12px;">No accounts yet.</div>
+      <button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
     return;
   }
   el.innerHTML = logins.map((l,i) => `
     <div class="login-item ${activeLogin===l.email?'active':''}" onclick="selectLogin('${esc(l.email)}')">
       <div class="login-avatar">${l.picture?`<img src="${l.picture}" onerror="this.style.display='none'"/>`:''}
         <span style="${l.picture?'display:none':''}">${l.email[0].toUpperCase()}</span></div>
-      <div style="flex:1;min-width:0;"><div class="login-email">${esc(l.email)}</div>
-        <div class="login-count" id="lc_${i}">—</div></div>
+      <div style="flex:1;min-width:0;">
+        <div class="login-email">${esc(l.email)}</div>
+        <div class="login-count" id="lc_${i}">—</div>
+      </div>
       <button class="remove-login" onclick="removeLogin(event,'${esc(l.email)}')">✕</button>
     </div>`).join('') +
     `<button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
@@ -322,8 +400,9 @@ function renderLoginsList() {
 async function selectLogin(email) {
   activeLogin = email;
   renderLoginsList();
-  const panel = document.getElementById('accountsPanel');
-  panel.innerHTML = '<div class="panel-loading"><div class="spinner" style="margin:0 auto 10px"></div>Loading accounts...</div>';
+  const tree = document.getElementById('mccTree');
+  tree.innerHTML = '<div class="panel-loading"><div class="spinner" style="margin:0 auto 10px"></div>Loading MCC structure...</div>';
+
   try {
     if (!discoveredAccounts[email]) {
       const res = await api('/api/accounts');
@@ -338,72 +417,137 @@ async function selectLogin(email) {
     const idx = logins.findIndex(l => l.email === email);
     const ce = document.getElementById('lc_' + idx);
     if (ce) ce.textContent = accounts.length + ' account' + (accounts.length!==1?'s':'');
-    renderAccountsPanel(email, accounts);
+    renderMccTree(email, accounts);
   } catch(e) {
-    panel.innerHTML = `<div class="panel-empty">❌ ${esc(e.message)}</div>`;
+    tree.innerHTML = `<div class="panel-empty">❌ ${esc(e.message)}</div>`;
   }
 }
 
-function renderAccountsPanel(email, accounts) {
-  const panel = document.getElementById('accountsPanel');
-  document.getElementById('loginStats').textContent = `${whitelist.size} selected`;
-  if (!accounts.length) { panel.innerHTML = '<div class="panel-empty">No sub-accounts found.</div>'; return; }
-  panel.innerHTML = `
-    <div class="accounts-panel-header">
-      <span class="accounts-panel-title">${accounts.length} accounts</span>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="selectAll('${esc(email)}')">Select All</button>
-        <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="deselectAll('${esc(email)}')">Deselect All</button>
-      </div>
-    </div>` +
-    accounts.map(a => {
+// ── MCC Tree ──
+function renderMccTree(email, accounts) {
+  const tree = document.getElementById('mccTree');
+  updateSelectionCount();
+
+  if (!accounts.length) {
+    tree.innerHTML = '<div class="panel-empty">No sub-accounts found under this login.</div>';
+    return;
+  }
+
+  // Group accounts by MCC
+  const mccGroups = {};
+  accounts.forEach(a => {
+    const mccId = a.mccId || 'unknown';
+    const mccName = a.mccName || ('MCC ' + mccId);
+    if (!mccGroups[mccId]) mccGroups[mccId] = { mccId, mccName, accounts: [] };
+    mccGroups[mccId].accounts.push(a);
+  });
+
+  const groups = Object.values(mccGroups);
+
+  tree.innerHTML = groups.map(g => {
+    const allSelected    = g.accounts.every(a => whitelist.has(a.accountId));
+    const someSelected   = g.accounts.some(a => whitelist.has(a.accountId));
+    const isCollapsed    = collapsedMccs.has(g.mccId);
+    const chkCls = allSelected ? 'checked' : someSelected ? 'partial' : '';
+    const selectedCount  = g.accounts.filter(a => whitelist.has(a.accountId)).length;
+
+    const accountRows = g.accounts.map(a => {
       const sel = whitelist.has(a.accountId);
       const d   = whitelistData[a.accountId];
-      return `<div class="account-row ${sel?'selected':''}" onclick="toggleAccount('${a.accountId}','${esc(a.accountName)}','${a.mccId||a.accountId}','${esc(email)}','${a.currency||''}')">
-        <div class="account-check"></div>
-        <div class="account-info">
-          <div class="account-name-sm">${esc(a.accountName)}</div>
-          <div class="account-id-sm">${esc(a.accountId)}</div>
-          ${d&&d.monthlyBudget?`<div style="font-size:9px;color:var(--text3);margin-top:1px;">Budget: ${d.monthlyBudget} · Range: ±${d.rangePercent||10}%</div>`:''}
+      const inBulk = bulkSelected.has(a.accountId);
+      return `<div class="acc-row ${sel?'selected':''} ${inBulk?'bulk-highlight':''}"
+        onclick="toggleAccount('${a.accountId}','${esc(a.accountName)}','${g.mccId}','${esc(email)}','${a.currency||''}')">
+        <div class="acc-check"></div>
+        <span class="acc-icon">📢</span>
+        <div class="acc-info">
+          <div class="acc-name-t">${esc(a.accountName)}</div>
+          <div class="acc-id-t">${esc(a.accountId)}</div>
         </div>
-        <span class="account-currency">${a.currency||''}</span>
-        ${sel?`<button style="background:none;border:none;font-size:11px;color:var(--blue);cursor:pointer;padding:2px 6px;white-space:nowrap;" onclick="openBudget(event,'${a.accountId}','${esc(a.accountName)}',0)">Set budget</button>`:''}
+        <span class="acc-curr">${a.currency||''}</span>
+        ${d&&d.monthlyBudget ? `<span class="acc-budget-tag">$${fmt(d.monthlyBudget)}</span>` : ''}
+        ${sel ? `<button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;padding:2px 5px;white-space:nowrap;flex-shrink:0;"
+          onclick="openBudgetSingle(event,'${a.accountId}','${esc(a.accountName)}',0)">${d&&d.monthlyBudget?'✏️':'Set $'}</button>` : ''}
       </div>`;
     }).join('');
+
+    return `<div class="mcc-group" id="mcc_${g.mccId}">
+      <div class="mcc-header" onclick="toggleMccExpand('${g.mccId}')">
+        <div class="mcc-checkbox ${chkCls}" onclick="toggleMccSelect(event,'${g.mccId}','${esc(email)}')"></div>
+        <span class="mcc-chevron ${isCollapsed?'':'open'}">▶</span>
+        <span class="mcc-icon">📁</span>
+        <span class="mcc-name">${esc(g.mccName)}</span>
+        <span class="mcc-id">${g.mccId}</span>
+        <span class="mcc-count">${selectedCount}/${g.accounts.length}</span>
+      </div>
+      <div class="mcc-accounts ${isCollapsed?'collapsed':''}">${accountRows}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMccExpand(mccId) {
+  if (collapsedMccs.has(mccId)) collapsedMccs.delete(mccId);
+  else collapsedMccs.add(mccId);
+  if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]);
+}
+
+function toggleMccSelect(e, mccId, email) {
+  e.stopPropagation();
+  const accounts = (discoveredAccounts[email]||[]).filter(a => (a.mccId||'unknown') === mccId);
+  const allSel   = accounts.every(a => whitelist.has(a.accountId));
+  accounts.forEach(a => {
+    if (allSel) {
+      whitelist.delete(a.accountId);
+      removedAccounts.add(a.accountId);
+      delete whitelistData[a.accountId];
+    } else {
+      whitelist.add(a.accountId);
+      removedAccounts.delete(a.accountId);
+      if (!whitelistData[a.accountId])
+        whitelistData[a.accountId] = { accountId:a.accountId, accountName:a.accountName, mccId:a.mccId||mccId, loginEmail:email, currency:a.currency, monthlyBudget:null, rangePercent:10 };
+    }
+  });
+  renderMccTree(email, discoveredAccounts[email]||[]);
 }
 
 function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
   if (whitelist.has(accountId)) {
     whitelist.delete(accountId);
+    removedAccounts.add(accountId);
     delete whitelistData[accountId];
-    removedAccounts.add(accountId); // track as explicitly removed
+    bulkSelected.delete(accountId);
   } else {
     whitelist.add(accountId);
-    removedAccounts.delete(accountId); // no longer removed
-    whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget:null, rangePercent:10 };
+    removedAccounts.delete(accountId);
+    if (!whitelistData[accountId])
+      whitelistData[accountId] = { accountId, accountName, mccId, loginEmail, currency, monthlyBudget:null, rangePercent:10 };
   }
-  renderAccountsPanel(loginEmail, discoveredAccounts[loginEmail]||[]);
+  renderMccTree(loginEmail, discoveredAccounts[loginEmail]||[]);
 }
 
-function selectAll(email) {
-  (discoveredAccounts[email]||[]).forEach(a => {
-    whitelist.add(a.accountId);
-    if (!whitelistData[a.accountId]) whitelistData[a.accountId] = { accountId:a.accountId, accountName:a.accountName, mccId:a.mccId||a.accountId, loginEmail:email, currency:a.currency, monthlyBudget:null, rangePercent:10 };
-  });
-  renderAccountsPanel(email, discoveredAccounts[email]||[]);
+function updateSelectionCount() {
+  const total = whitelist.size;
+  document.getElementById('selectionCount').textContent = total ? `${total} accounts selected` : '';
+  const bulkBtn = document.getElementById('bulkBudgetBtn');
+  bulkBtn.style.display = total >= 2 ? '' : 'none';
+  if (total >= 2) bulkBtn.textContent = `💰 Set Budget for ${total} selected`;
+
+  // bulk bar
+  const bar = document.getElementById('bulkBar');
+  if (bulkSelected.size >= 2) {
+    bar.classList.remove('hidden');
+    document.getElementById('bulkBarText').textContent = `${bulkSelected.size} accounts selected for bulk budget`;
+  } else {
+    bar.classList.add('hidden');
+  }
 }
 
-function deselectAll(email) {
-  (discoveredAccounts[email]||[]).forEach(a => { whitelist.delete(a.accountId); delete whitelistData[a.accountId]; });
-  renderAccountsPanel(email, discoveredAccounts[email]||[]);
-}
-
+// ── Save whitelist ──
 async function saveWhitelist() {
   const accounts = Array.from(whitelist).map(id => whitelistData[id]).filter(Boolean);
   const removed  = Array.from(removedAccounts);
   try {
     await api('/api/whitelist','POST',{ accounts, removed });
-    removedAccounts.clear(); // reset after successful save
+    removedAccounts.clear();
     showToast('✅ Selection saved!');
     loadSpend();
     showPage('dashboard');
@@ -429,6 +573,7 @@ async function removeLogin(e, email) {
   } catch(e) { showToast('❌ '+e.message); }
 }
 
+// ── Spend data ──
 async function loadSpend() {
   setStatus('loading','Fetching...');
   document.getElementById('refreshBtn').disabled = true;
@@ -469,51 +614,43 @@ function renderTable() {
     if (activeFilter==='ok')    return a.pacing?.status==='on_track';
     return true;
   });
-
   if (!filtered.length) {
     document.getElementById('tableWrap').innerHTML = `<div class="state-box"><div style="font-size:32px">${allSpend.length?'🔍':'🔗'}</div><h3>${allSpend.length?'No results':'No accounts linked'}</h3><p>${allSpend.length?'Try a different filter.':'Go to <strong>Manage Logins</strong>.'}</p></div>`;
     return;
   }
-
   const today = new Date().getDate();
   const rows = filtered.map(a => {
-    const p = a.pacing;
-    const curr = a.currency||'';
+    const p = a.pacing, curr = a.currency||'';
     const rowCls = p?.status==='overspending'?'row-over':p?.status==='underspending'?'row-under':'';
-    let badge, detail, barPct, barCls;
+    let badge='', detail='', barHtml='';
     if (!p) {
       badge = `<span class="pacing-badge none">No budget set</span>`;
-      detail = '';
     } else {
       const icon  = p.status==='overspending'?'🔴':p.status==='underspending'?'🟡':'✅';
       const cls   = p.status==='overspending'?'over':p.status==='underspending'?'under':'ok';
       const label = p.status==='overspending'?`${p.absVariance}% over pace`:p.status==='underspending'?`${p.absVariance}% under pace`:`On track (${p.variance>0?'+':''}${p.variance}%)`;
       badge  = `<span class="pacing-badge ${cls}">${icon} ${label}</span>`;
       detail = `<div class="pacing-detail">Expected: ${curr} ${fmt(p.expected)} · Actual: ${curr} ${fmt(a.mtdSpend)}</div>`;
-      barPct = Math.min((a.mtdSpend/p.expected)*100,150);
-      barCls = cls;
+      const barPct = Math.min((a.mtdSpend/p.expected)*100,100);
+      barHtml = `<div class="pacing-bar-wrap"><div class="pacing-bar ${cls}" style="width:${barPct}%"></div></div>`;
     }
     const budgetLine = a.monthlyBudget
       ? `<div class="spend-sub">Budget: ${curr} ${fmt(a.monthlyBudget)} · Day ${today}/30.4</div>`
       : `<div class="spend-sub" style="color:var(--yellow)">⚠ No budget set</div>`;
-
     return `<tr class="${rowCls}">
       <td><div class="acc-name-cell">${esc(a.accountName)}</div><div class="acc-id-cell">${esc(a.accountId)}</div><div class="acc-src-cell">via ${esc(a.loginEmail||'')}</div></td>
       <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.dailySpend)}</span><span class="spend-sub">today</span></div></td>
       <td class="r"><div class="spend-cell"><span class="spend-main">${curr} ${fmt(a.mtdSpend)}</span>${budgetLine}</div></td>
-      <td class="r"><div class="pacing-cell">
-        ${badge}${detail}
-        ${p?`<div class="pacing-bar-wrap"><div class="pacing-bar ${barCls}" style="width:${Math.min(barPct,100)}%"></div></div>`:''}
-        <button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;margin-top:2px;" onclick="openBudgetFromTable('${a.accountId}','${esc(a.accountName)}',${a.mtdSpend},${a.monthlyBudget||0},${a.rangePercent||10})">${a.monthlyBudget?'Edit budget':'Set budget'}</button>
+      <td class="r"><div class="pacing-cell">${badge}${detail}${barHtml}
+        <button style="background:none;border:none;font-size:10px;color:var(--blue);cursor:pointer;margin-top:2px;"
+          onclick="openBudgetFromTable('${a.accountId}','${esc(a.accountName)}',${a.mtdSpend},${a.monthlyBudget||0},${a.rangePercent||10})">
+          ${a.monthlyBudget?'Edit budget':'Set budget'}</button>
       </div></td>
     </tr>`;
   }).join('');
-
   document.getElementById('tableWrap').innerHTML = `
-    <table>
-      <thead><tr><th>Account</th><th class="r">Daily Spend</th><th class="r">MTD Spend</th><th class="r">Pacing Status</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <table><thead><tr><th>Account</th><th class="r">Daily Spend</th><th class="r">MTD Spend</th><th class="r">Pacing Status</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
 }
 
 function setFilter(f) {
@@ -527,11 +664,17 @@ function setFilter(f) {
   renderTable();
 }
 
-function openBudget(e, accountId, accountName, mtdSpend) {
+// ── Budget Modal ──
+let isBulkMode = false;
+
+function openBudgetSingle(e, accountId, accountName, mtdSpend) {
   e.stopPropagation();
-  budgetTarget = accountId; budgetTargetMtd = mtdSpend;
+  isBulkMode = false;
+  budgetTarget = accountId;
+  budgetTargetMtd = mtdSpend;
   document.getElementById('budgetTitle').textContent = accountName;
   document.getElementById('budgetSub').textContent   = accountId;
+  document.getElementById('bulkAccountsList').style.display = 'none';
   const d = whitelistData[accountId]||{};
   document.getElementById('budgetMonthly').value = d.monthlyBudget||'';
   document.getElementById('budgetRange').value   = d.rangePercent||10;
@@ -539,10 +682,31 @@ function openBudget(e, accountId, accountName, mtdSpend) {
   document.getElementById('budgetModal').classList.add('open');
 }
 
+function openBulkBudget() {
+  isBulkMode = true;
+  budgetTarget = 'bulk';
+  budgetTargetMtd = 0;
+  const selected = Array.from(whitelist);
+  document.getElementById('budgetTitle').textContent = `Set Budget for ${selected.length} Accounts`;
+  document.getElementById('budgetSub').textContent   = 'Applied to all selected accounts. Each can be edited individually after.';
+  document.getElementById('bulkAccountsList').style.display = '';
+  document.getElementById('bulkAccountsListInner').innerHTML =
+    selected.map(id => {
+      const d = whitelistData[id];
+      return `<div class="bulk-acc-item">• ${esc(d?.accountName||id)} <span style="color:var(--text3)">${id}</span></div>`;
+    }).join('');
+  document.getElementById('budgetMonthly').value = '';
+  document.getElementById('budgetRange').value   = 10;
+  updatePreview();
+  document.getElementById('budgetModal').classList.add('open');
+}
+
 function openBudgetFromTable(accountId, accountName, mtdSpend, budget, range) {
+  isBulkMode = false;
   budgetTarget = accountId; budgetTargetMtd = mtdSpend;
   document.getElementById('budgetTitle').textContent = accountName;
   document.getElementById('budgetSub').textContent   = accountId;
+  document.getElementById('bulkAccountsList').style.display = 'none';
   document.getElementById('budgetMonthly').value = budget||'';
   document.getElementById('budgetRange').value   = range||10;
   updatePreview();
@@ -556,18 +720,22 @@ function updatePreview() {
   if (!budget) { prev.innerHTML = 'Enter a monthly budget to see the pacing preview.'; return; }
   const today    = new Date().getDate();
   const expected = (today/30.4)*budget;
-  const mtd      = budgetTargetMtd||0;
-  const variance = ((mtd/expected)-1)*100;
+  const mtd      = isBulkMode ? 0 : (budgetTargetMtd||0);
+  const variance = mtd ? ((mtd/expected)-1)*100 : 0;
   const upper    = expected*(1+range/100);
   const lower    = expected*(1-range/100);
-  let statusLine;
-  if (variance > range)       statusLine = `<span style="color:var(--red);font-weight:600">🔴 Overspending by ${Math.abs(variance).toFixed(1)}%</span>`;
-  else if (variance < -range) statusLine = `<span style="color:var(--yellow);font-weight:600">🟡 Underspending by ${Math.abs(variance).toFixed(1)}%</span>`;
-  else                        statusLine = `<span style="color:var(--green);font-weight:600">✅ On track (${variance>0?'+':''}${variance.toFixed(1)}%)</span>`;
+  let statusLine = mtd
+    ? (variance > range
+        ? `<span style="color:var(--red);font-weight:600">🔴 Overspending by ${Math.abs(variance).toFixed(1)}%</span>`
+        : variance < -range
+          ? `<span style="color:var(--yellow);font-weight:600">🟡 Underspending by ${Math.abs(variance).toFixed(1)}%</span>`
+          : `<span style="color:var(--green);font-weight:600">✅ On track</span>`)
+    : `<span style="color:var(--text2)">Connect to see live status</span>`;
   prev.innerHTML = `Day <strong>${today}</strong> of month &nbsp;|&nbsp; Budget: <strong>${fmt(budget)}</strong><br>
-    Expected to date: <strong>${fmt(expected)}</strong> &nbsp;(${today}/30.4 × ${fmt(budget)})<br>
+    Expected to date: <strong>${fmt(expected)}</strong><br>
     Acceptable range: <strong>${fmt(lower)}</strong> – <strong>${fmt(upper)}</strong> (±${range}%)<br>
-    Current MTD spend: <strong>${fmt(mtd)}</strong><br><br>Status: ${statusLine}`;
+    ${!isBulkMode && mtd ? `Current MTD: <strong>${fmt(mtd)}</strong><br>` : ''}
+    Status: ${statusLine}`;
 }
 
 function closeBudgetModal() { document.getElementById('budgetModal').classList.remove('open'); }
@@ -575,20 +743,41 @@ function closeBudgetModal() { document.getElementById('budgetModal').classList.r
 async function saveBudget() {
   const monthly = parseFloat(document.getElementById('budgetMonthly').value)||null;
   const range   = parseFloat(document.getElementById('budgetRange').value)||10;
-  try {
-    await api('/api/whitelist/'+budgetTarget,'PATCH',{ monthlyBudget:monthly, rangePercent:range });
-    if (whitelistData[budgetTarget]) { whitelistData[budgetTarget].monthlyBudget=monthly; whitelistData[budgetTarget].rangePercent=range; }
+
+  if (isBulkMode) {
+    // Apply to all selected accounts
+    const ids = Array.from(whitelist);
+    let saved = 0;
+    for (const id of ids) {
+      try {
+        await api('/api/whitelist/'+id,'PATCH',{ monthlyBudget:monthly, rangePercent:range });
+        if (whitelistData[id]) { whitelistData[id].monthlyBudget=monthly; whitelistData[id].rangePercent=range; }
+        saved++;
+      } catch(e) { console.error('Budget error for', id, e.message); }
+    }
     closeBudgetModal();
-    showToast('✅ Budget saved');
+    showToast(`✅ Budget saved for ${saved} accounts`);
+    if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]);
     loadSpend();
-  } catch(e) { showToast('❌ '+e.message); }
+  } else {
+    try {
+      await api('/api/whitelist/'+budgetTarget,'PATCH',{ monthlyBudget:monthly, rangePercent:range });
+      if (whitelistData[budgetTarget]) { whitelistData[budgetTarget].monthlyBudget=monthly; whitelistData[budgetTarget].rangePercent=range; }
+      closeBudgetModal();
+      showToast('✅ Budget saved');
+      if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]);
+      loadSpend();
+    } catch(e) { showToast('❌ '+e.message); }
+  }
 }
+
+function clearBulkSelection() { bulkSelected.clear(); updateSelectionCount(); if (activeLogin) renderMccTree(activeLogin, discoveredAccounts[activeLogin]||[]); }
 
 document.getElementById('budgetModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeBudgetModal(); });
 
+// ── Helpers ──
 function setStatus(type,text) {
-  const dot = document.getElementById('statusDot');
-  dot.className='dot';
+  const dot=document.getElementById('statusDot'); dot.className='dot';
   if(type==='live') dot.classList.add('live');
   if(type==='loading') dot.classList.add('loading');
   if(type==='error') dot.classList.add('error');
