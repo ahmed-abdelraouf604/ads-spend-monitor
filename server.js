@@ -176,24 +176,62 @@ app.get('/api/spend', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// WHITELIST
+// WHITELIST — GET current list
+app.get('/api/whitelist', async (req, res) => {
+  const { data, error } = await supabase.from('whitelist').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  const accounts = (data || []).map(r => ({
+    accountId:     r.account_id,
+    accountName:   r.account_name,
+    mccId:         r.mcc_id,
+    loginEmail:    r.login_email,
+    monthlyBudget: r.monthly_budget,
+    rangePercent:  r.range_percent
+  }));
+  res.json({ accounts });
+});
+
+// WHITELIST — upsert only, never deletes existing accounts or their budgets
 app.post('/api/whitelist', async (req, res) => {
-  const { accounts } = req.body;
+  const { accounts, removed } = req.body;
   if (!Array.isArray(accounts)) return res.status(400).json({ error: 'accounts must be array' });
-  await supabase.from('whitelist').delete().neq('id', 0);
-  if (accounts.length > 0) {
-    const rows = accounts.map(a => ({
-      account_id:     String(a.accountId).replace(/-/g,''),
+
+  // 1. Delete explicitly removed accounts
+  if (Array.isArray(removed) && removed.length > 0) {
+    const ids = removed.map(id => String(id).replace(/-/g,''));
+    await supabase.from('whitelist').delete().in('account_id', ids);
+  }
+
+  // 2. Fetch existing budgets so we preserve them
+  const { data: existing } = await supabase.from('whitelist').select('account_id,monthly_budget,range_percent');
+  const existingMap = {};
+  (existing || []).forEach(r => { existingMap[r.account_id] = r; });
+
+  // 3. Upsert new/updated accounts — preserve existing budget if not provided
+  for (const a of accounts) {
+    const accountId = String(a.accountId).replace(/-/g,'');
+    const prev = existingMap[accountId];
+    const row = {
+      account_id:     accountId,
       account_name:   a.accountName,
       mcc_id:         String(a.mccId).replace(/-/g,''),
       login_email:    a.loginEmail,
-      monthly_budget: a.monthlyBudget || null,
-      range_percent:  a.rangePercent  || 10
-    }));
-    const { error } = await supabase.from('whitelist').insert(rows);
-    if (error) return res.status(500).json({ error: error.message });
+      monthly_budget: a.monthlyBudget != null ? a.monthlyBudget : (prev?.monthly_budget ?? null),
+      range_percent:  a.rangePercent  != null ? a.rangePercent  : (prev?.range_percent  ?? 10)
+    };
+    const { error } = await supabase.from('whitelist').upsert(row, { onConflict: 'account_id' });
+    if (error) console.error('Upsert error for', accountId, error.message);
   }
+
   res.json({ success: true, saved: accounts.length });
+});
+
+// DELETE single account from whitelist
+app.delete('/api/whitelist/:accountId', async (req, res) => {
+  const accountId = req.params.accountId.replace(/-/g,'');
+  const { error } = await supabase.from('whitelist').delete().eq('account_id', accountId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
 });
 
 app.patch('/api/whitelist/:accountId', async (req, res) => {
