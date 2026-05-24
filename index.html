@@ -456,8 +456,8 @@ function renderMccTree(email, accounts) {
     const accountRows = g.accounts.map(a => {
       const sel = whitelist.has(a.accountId);
       const d   = whitelistData[a.accountId];
-      const inBulk = bulkSelected.has(a.accountId);
-      return `<div class="acc-row ${sel?'selected':''} ${inBulk?'bulk-highlight':''}"
+      
+      return `<div class="acc-row ${sel?'selected':''}"
         onclick="toggleAccount('${a.accountId}','${esc(a.accountName)}','${g.mccId}','${esc(email)}','${a.currency||''}')">
         <div class="acc-check"></div>
         <span class="acc-icon">📢</span>
@@ -516,7 +516,7 @@ function toggleAccount(accountId, accountName, mccId, loginEmail, currency) {
     whitelist.delete(accountId);
     removedAccounts.add(accountId);
     delete whitelistData[accountId];
-    bulkSelected.delete(accountId);
+    dashSelected.delete(accountId);
   } else {
     whitelist.add(accountId);
     removedAccounts.delete(accountId);
