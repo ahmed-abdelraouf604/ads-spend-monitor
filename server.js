@@ -374,7 +374,7 @@ app.post('/api/performance', async (req, res) => {
               accountName: acc.account_name,
               mccId:       formatId(acc.mcc_id),
               loginEmail:  login.email,
-              currency:    metrics.currency,
+              currency:    metrics.currency || acc.currency || '',
               impressions: metrics.impressions,
               clicks:      metrics.clicks,
               ctr:         metrics.ctr,
@@ -382,9 +382,23 @@ app.post('/api/performance', async (req, res) => {
               cost:        metrics.cost,
               conversions: metrics.conversions,
               costPerConv: metrics.costPerConv,
-              convRate:    metrics.convRate
+              convRate:    metrics.convRate,
+              hasError:    metrics.hasError || false
             });
-          } catch(e) { console.error('Metrics error for', acc.account_id, e.message); }
+          } catch(e) {
+            console.error('Metrics error for', acc.account_id, e.message);
+            // Still include the account with zeros so it shows in the table
+            results.push({
+              accountId:   formatId(acc.account_id),
+              accountName: acc.account_name,
+              mccId:       formatId(acc.mcc_id),
+              loginEmail:  login.email,
+              currency:    acc.currency || '',
+              impressions: 0, clicks: 0, ctr: 0, avgCpc: 0,
+              cost: 0, conversions: 0, costPerConv: 0, convRate: 0,
+              hasError: true, errorMsg: e.message
+            });
+          }
         }
       } catch(e) { console.error('Auth error for', login.email, e.message); }
     }
@@ -439,8 +453,13 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
   });
   const data = await res.json();
 
-  if (!res.ok || !data.results || !data.results.length) {
-    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0 };
+  if (!res.ok) {
+    console.error('Metrics API error for', accountId, JSON.stringify(data).substring(0, 200));
+    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true };
+  }
+  if (!data.results || !data.results.length) {
+    // Account has no data for this period — still return zeros (not an error)
+    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:false };
   }
 
   // Aggregate across all rows (date segments)
