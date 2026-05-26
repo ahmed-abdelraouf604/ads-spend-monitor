@@ -1033,16 +1033,30 @@ const COL_DEFS = [
 // Build MCC structure from discovered accounts
 function buildPerfMccs() {
   perfMccs = {};
-  // Use discoveredAccounts which is already populated
+
+  // Source 1: discoveredAccounts (has mccName from API)
   Object.keys(discoveredAccounts).forEach(email => {
     (discoveredAccounts[email] || []).forEach(a => {
-      const mccId = a.mccId || 'unknown';
-      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: a.mccName || ('MCC ' + mccId), accounts: [] };
-      if (!perfMccs[mccId].accounts.find(x => x.accountId === a.accountId))
-        perfMccs[mccId].accounts.push(a);
+      const mccId = (a.mccId || 'unknown').replace(/-/g,'');
+      const mccName = a.mccName || null;
+      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: mccName || ('MCC ' + mccId), accounts: [] };
+      else if (mccName && perfMccs[mccId].mccName.startsWith('MCC ')) perfMccs[mccId].mccName = mccName;
+      const clean = (a.accountId||'').replace(/-/g,'');
+      if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
+        perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
     });
   });
-  // Also use whitelist data for accounts not yet discovered
+
+  // Source 2: allSpend (already loaded on dashboard, has accountName, mccId, loginEmail)
+  allSpend.forEach(a => {
+    const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
+    if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
+    const clean = (a.accountId||'').replace(/-/g,'');
+    if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
+      perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
+  });
+
+  // Source 3: whitelistData (fallback for any remaining accounts)
   Object.values(whitelistData).forEach(a => {
     const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
     if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
@@ -1052,8 +1066,27 @@ function buildPerfMccs() {
   });
 }
 
-function initPerformanceTab() {
+async function initPerformanceTab() {
+  // If no accounts loaded yet, fetch them first
+  if (allSpend.length === 0 && Object.keys(whitelistData).length === 0) {
+    await loadWhitelistFromDB();
+  }
+  // If discoveredAccounts is empty, trigger account discovery to get MCC names
+  if (Object.keys(discoveredAccounts).length === 0 && logins.length > 0) {
+    try {
+      const res = await api('/api/accounts');
+      logins.forEach(l => { if (!discoveredAccounts[l.email]) discoveredAccounts[l.email] = []; });
+      (res.accounts||[]).forEach(a => {
+        if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
+        if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
+          discoveredAccounts[a.loginEmail].push(a);
+      });
+    } catch(e) { console.log('Account discovery error:', e.message); }
+  }
   buildPerfMccs();
+  // Reset mode to all when re-entering tab
+  mccMode = 'all'; accMode = 'all';
+  selMccs.clear(); selAccounts.clear();
   renderMccDropdown();
   renderAccDropdown();
   renderColToggles();
