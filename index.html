@@ -1343,14 +1343,21 @@ function renderPerfTable() {
     }
   });
 
-  const rows = sorted.map(a => `
-    <tr>
+  const rows = sorted.map(a => {
+    const rowStyle = a.hasError ? 'opacity:0.6;' : '';
+    const errorNote = a.hasError
+      ? `<span style="font-size:9px;color:var(--red);font-family:var(--mono);margin-left:6px;">⚠ API error</span>`
+      : (a.impressions === 0 && a.clicks === 0 && a.cost === 0)
+        ? `<span style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-left:6px;">No data</span>`
+        : '';
+    return `<tr style="${rowStyle}">
       <td>
-        <div class="perf-acc-name">${esc(a.accountName)}</div>
+        <div class="perf-acc-name">${esc(a.accountName)}${errorNote}</div>
         <div class="perf-acc-id">${esc(a.accountId)} · ${esc(a.loginEmail)}</div>
       </td>
       ${cols.map(c => `<td class="num">${fmtMetric(c.key, a[c.key], a.currency)}</td>`).join('')}
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   const totalsRow = `
     <tr class="totals-row">
