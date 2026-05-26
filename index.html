@@ -197,6 +197,55 @@ td{padding:12px 16px;font-size:13px;}
 .bulk-accounts-list{max-height:120px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:4px;}
 .bulk-acc-item{font-size:11px;font-family:var(--mono);color:var(--text2);padding:2px 0;}
 footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface);}
+
+/* ── Performance Tab ── */
+.perf-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.dropdown-wrap{position:relative;display:inline-block;}
+.dropdown-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;color:var(--text);white-space:nowrap;min-width:140px;justify-content:space-between;}
+.dropdown-btn:hover{border-color:var(--blue);}
+.dropdown-btn .arrow{font-size:10px;color:var(--text3);}
+.dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;min-width:220px;max-height:320px;overflow-y:auto;display:none;}
+.dropdown-menu.open{display:block;}
+.dropdown-menu.right{left:auto;right:0;}
+.dropdown-section{padding:6px 0;border-bottom:1px solid var(--border);}
+.dropdown-section:last-child{border-bottom:none;}
+.dropdown-section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;padding:6px 12px 2px;}
+.dropdown-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;transition:background 0.1s;}
+.dropdown-item:hover{background:var(--bg);}
+.dropdown-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;}
+.dropdown-item.active{background:var(--blue-l);color:var(--blue);font-weight:500;}
+.dropdown-footer{padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;}
+.date-custom{padding:8px 12px;}
+.date-custom label{font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;}
+.date-custom input{width:100%;border:1px solid var(--border2);border-radius:4px;padding:5px 8px;font-size:12px;font-family:var(--mono);}
+.date-custom input:focus{outline:none;border-color:var(--blue);}
+.col-toggle{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:12px;transition:background 0.1s;user-select:none;}
+.col-toggle:hover{background:var(--bg);}
+.col-toggle input{width:13px;height:13px;accent-color:var(--blue);cursor:pointer;}
+.perf-apply-btn{padding:7px 18px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;}
+.perf-apply-btn:hover{background:#1d4ed8;}
+.perf-apply-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.perf-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.perf-table-wrap table{width:100%;border-collapse:collapse;}
+.perf-table-wrap thead tr{background:var(--bg);border-bottom:1px solid var(--border);}
+.perf-table-wrap th{padding:10px 14px;text-align:right;font-size:10px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;cursor:pointer;user-select:none;}
+.perf-table-wrap th:first-child{text-align:left;cursor:default;}
+.perf-table-wrap th:hover:not(:first-child){color:var(--blue);}
+.perf-table-wrap th.sorted{color:var(--blue);}
+.perf-table-wrap tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s;}
+.perf-table-wrap tbody tr:last-child{border-bottom:none;}
+.perf-table-wrap tbody tr:hover{background:var(--bg);}
+.perf-table-wrap tbody tr.totals-row{background:var(--bg);font-weight:600;border-top:2px solid var(--border2);}
+.perf-table-wrap td{padding:11px 14px;font-size:12px;text-align:right;}
+.perf-table-wrap td:first-child{text-align:left;}
+.perf-acc-name{font-weight:600;font-size:12px;}
+.perf-acc-id{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.num{font-family:var(--mono);}
+.perf-loading{padding:60px;text-align:center;color:var(--text2);font-size:13px;}
+.perf-empty{padding:60px;text-align:center;color:var(--text3);font-size:13px;}
+.selected-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.tag{display:inline-flex;align-items:center;gap:4px;background:var(--blue-l);border:1px solid var(--blue-b);color:var(--blue);border-radius:12px;padding:2px 8px;font-size:11px;}
+.tag .rm{cursor:pointer;font-size:12px;opacity:0.6;}
 </style>
 </head>
 <body>
@@ -208,6 +257,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
   </div>
   <nav class="sidebar-nav">
     <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+    <button class="nav-item" onclick="showPage('performance')"><span class="nav-icon">📈</span> Performance</button>
     <button class="nav-item" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
   </nav>
   <div class="sidebar-footer">
@@ -252,6 +302,92 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
       <div id="tableWrap">
         <div class="state-box"><div style="font-size:36px">🔗</div><h3>No accounts linked</h3><p>Go to <strong>Manage Logins</strong> to get started.</p></div>
       </div>
+    </div>
+  </div>
+
+  <!-- PERFORMANCE TAB -->
+  <div id="pagePerformance" class="content" style="display:none;">
+    <div class="perf-toolbar">
+
+      <!-- MCC Selector -->
+      <div class="dropdown-wrap" id="mccDropWrap">
+        <button class="dropdown-btn" onclick="toggleDrop('mccDrop')" id="mccDropBtn">
+          <span id="mccDropLabel">All MCCs</span><span class="arrow">▼</span>
+        </button>
+        <div class="dropdown-menu" id="mccDrop">
+          <div class="dropdown-section">
+            <div class="dropdown-item" onclick="selectAllMccs()">
+              <input type="checkbox" id="mccAll" checked> <span>All MCCs</span>
+            </div>
+          </div>
+          <div class="dropdown-section" id="mccList"></div>
+          <div class="dropdown-footer">
+            <button class="btn btn-ghost btn-sm" onclick="clearMccSel()">Clear</button>
+            <button class="btn btn-primary btn-sm" onclick="applyMccSel()">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Selector -->
+      <div class="dropdown-wrap" id="accDropWrap">
+        <button class="dropdown-btn" onclick="toggleDrop('accDrop')" id="accDropBtn">
+          <span id="accDropLabel">All Accounts</span><span class="arrow">▼</span>
+        </button>
+        <div class="dropdown-menu" id="accDrop" style="min-width:280px;">
+          <div class="dropdown-section">
+            <div class="dropdown-item" onclick="selectAllAccounts()">
+              <input type="checkbox" id="accAll" checked> <span>All Accounts</span>
+            </div>
+          </div>
+          <div class="dropdown-section" id="accList"></div>
+          <div class="dropdown-footer">
+            <button class="btn btn-ghost btn-sm" onclick="clearAccSel()">Clear</button>
+            <button class="btn btn-primary btn-sm" onclick="applyAccSel()">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Range -->
+      <div class="dropdown-wrap" id="dateDropWrap">
+        <button class="dropdown-btn" onclick="toggleDrop('dateDrop')" id="dateDropBtn">
+          <span id="dateDropLabel">Last 30 days</span><span class="arrow">▼</span>
+        </button>
+        <div class="dropdown-menu right" id="dateDrop" style="min-width:200px;">
+          <div class="dropdown-section">
+            <div class="dropdown-item" onclick="setDateRange('TODAY','Today')">Today</div>
+            <div class="dropdown-item" onclick="setDateRange('YESTERDAY','Yesterday')">Yesterday</div>
+            <div class="dropdown-item" onclick="setDateRange('LAST_7_DAYS','Last 7 days')">Last 7 days</div>
+            <div class="dropdown-item active" id="dr_LAST_30_DAYS" onclick="setDateRange('LAST_30_DAYS','Last 30 days')">Last 30 days</div>
+            <div class="dropdown-item" onclick="setDateRange('THIS_MONTH','This month')">This month</div>
+            <div class="dropdown-item" onclick="setDateRange('LAST_MONTH','Last month')">Last month</div>
+          </div>
+          <div class="dropdown-section">
+            <div class="dropdown-section-label">Custom range</div>
+            <div class="date-custom">
+              <label>From</label><input type="date" id="dateFrom"/>
+              <label style="margin-top:8px;">To</label><input type="date" id="dateTo"/>
+              <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;" onclick="applyCustomDate()">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columns -->
+      <div class="dropdown-wrap">
+        <button class="dropdown-btn" onclick="toggleDrop('colDrop')" style="min-width:120px;">
+          <span>Columns</span><span class="arrow">▼</span>
+        </button>
+        <div class="dropdown-menu right" id="colDrop" style="min-width:200px;">
+          <div class="dropdown-section-label" style="padding:10px 12px 6px;">Show / hide columns</div>
+          <div id="colToggles"></div>
+        </div>
+      </div>
+
+      <button class="perf-apply-btn" id="perfApplyBtn" onclick="loadPerformance()">▶ Run Report</button>
+    </div>
+
+    <div class="perf-table-wrap" id="perfTableWrap">
+      <div class="perf-empty">Select your filters above and click <strong>Run Report</strong></div>
     </div>
   </div>
 
@@ -358,11 +494,13 @@ async function loadWhitelistFromDB() {
 
 // ── Navigation ──
 function showPage(page) {
-  ['dashboard','accounts'].forEach(p => {
+  if (page === 'performance') initPerformanceTab();
+  ['dashboard','performance','accounts'].forEach(p => {
     document.getElementById('page' + cap(p)).style.display = p === page ? '' : 'none';
   });
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','accounts'][i] === page));
-  document.getElementById('pageTitle').textContent = page === 'dashboard' ? 'Performance Alerts' : 'Manage Logins';
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','performance','accounts'][i] === page));
+  const titles = {dashboard:'Performance Alerts',performance:'Performance',accounts:'Manage Logins'};
+  document.getElementById('pageTitle').textContent = titles[page] || '';
   if (page === 'accounts') renderLoginsList();
 }
 
@@ -862,6 +1000,320 @@ function showToast(msg){
   t.textContent=msg;t.style.opacity='1';
   toastTimer=setTimeout(()=>t.style.opacity='0',3500);
 }
+
+// ══════════════════════════════════════════════
+// PERFORMANCE TAB
+// ══════════════════════════════════════════════
+
+// State
+let perfMccs     = {};   // mccId → {mccId, mccName, accounts:[]}
+let selMccs      = new Set();  // selected MCC IDs (empty = all)
+let selAccounts  = new Set();  // selected account IDs (empty = all)
+let perfDateRange = 'LAST_30_DAYS';
+let perfDateLabel = 'Last 30 days';
+let perfData     = [];
+let perfSortCol  = 'cost';
+let perfSortDir  = -1; // -1 = desc
+let visibleCols  = new Set(['impressions','clicks','ctr','avgCpc','cost','conversions','costPerConv','convRate']);
+
+const COL_DEFS = [
+  { key:'impressions', label:'Impressions' },
+  { key:'clicks',      label:'Clicks' },
+  { key:'ctr',         label:'CTR (%)' },
+  { key:'avgCpc',      label:'Avg. CPC' },
+  { key:'cost',        label:'Cost' },
+  { key:'conversions', label:'Conversions' },
+  { key:'costPerConv', label:'Cost / Conv.' },
+  { key:'convRate',    label:'Conv. Rate (%)' },
+];
+
+// Build MCC structure from discovered accounts
+function buildPerfMccs() {
+  perfMccs = {};
+  // Use discoveredAccounts which is already populated
+  Object.keys(discoveredAccounts).forEach(email => {
+    (discoveredAccounts[email] || []).forEach(a => {
+      const mccId = a.mccId || 'unknown';
+      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: a.mccName || ('MCC ' + mccId), accounts: [] };
+      if (!perfMccs[mccId].accounts.find(x => x.accountId === a.accountId))
+        perfMccs[mccId].accounts.push(a);
+    });
+  });
+  // Also use whitelist data for accounts not yet discovered
+  Object.values(whitelistData).forEach(a => {
+    const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
+    if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
+    const clean = (a.accountId||'').replace(/-/g,'');
+    if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
+      perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
+  });
+}
+
+function initPerformanceTab() {
+  buildPerfMccs();
+  renderMccDropdown();
+  renderAccDropdown();
+  renderColToggles();
+}
+
+// ── MCC Dropdown ──
+function renderMccDropdown() {
+  const list = document.getElementById('mccList');
+  const mccs = Object.values(perfMccs);
+  list.innerHTML = mccs.map(m => `
+    <div class="dropdown-item" onclick="toggleMccSel('${m.mccId}')">
+      <input type="checkbox" id="mcc_${m.mccId}" ${selMccs.size===0||selMccs.has(m.mccId)?'checked':''}>
+      <span>${esc(m.mccName)}</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text3);">${m.accounts.length}</span>
+    </div>`).join('');
+  updateMccLabel();
+}
+
+function toggleMccSel(mccId) {
+  if (selMccs.has(mccId)) selMccs.delete(mccId);
+  else selMccs.add(mccId);
+  document.getElementById('mcc_'+mccId).checked = selMccs.size===0 || selMccs.has(mccId);
+  document.getElementById('mccAll').checked = selMccs.size === 0;
+  updateMccLabel();
+  renderAccDropdown(); // update account list based on MCC selection
+}
+
+function selectAllMccs() {
+  selMccs.clear();
+  renderMccDropdown();
+  renderAccDropdown();
+}
+
+function clearMccSel() { selMccs.clear(); renderMccDropdown(); renderAccDropdown(); }
+function applyMccSel() { closeDrop('mccDrop'); renderAccDropdown(); }
+
+function updateMccLabel() {
+  const btn = document.getElementById('mccDropLabel');
+  if (selMccs.size === 0) btn.textContent = 'All MCCs';
+  else if (selMccs.size === 1) btn.textContent = perfMccs[[...selMccs][0]]?.mccName || '1 MCC';
+  else btn.textContent = selMccs.size + ' MCCs selected';
+}
+
+// ── Account Dropdown ──
+function renderAccDropdown() {
+  const list = document.getElementById('accList');
+  // Get accounts from selected MCCs (or all if none selected)
+  const mccsToShow = selMccs.size > 0
+    ? Object.values(perfMccs).filter(m => selMccs.has(m.mccId))
+    : Object.values(perfMccs);
+
+  list.innerHTML = mccsToShow.map(m => `
+    <div class="dropdown-section-label">${esc(m.mccName)}</div>
+    ${m.accounts.map(a => `
+      <div class="dropdown-item" onclick="toggleAccSel('${a.accountId}')">
+        <input type="checkbox" id="acc_${a.accountId}" ${selAccounts.size===0||selAccounts.has(a.accountId)?'checked':''}>
+        <span>${esc(a.accountName)}</span>
+      </div>`).join('')}
+  `).join('');
+  updateAccLabel();
+}
+
+function toggleAccSel(accountId) {
+  if (selAccounts.has(accountId)) selAccounts.delete(accountId);
+  else selAccounts.add(accountId);
+  const cb = document.getElementById('acc_'+accountId);
+  if (cb) cb.checked = selAccounts.size===0 || selAccounts.has(accountId);
+  document.getElementById('accAll').checked = selAccounts.size === 0;
+  updateAccLabel();
+}
+
+function selectAllAccounts() { selAccounts.clear(); renderAccDropdown(); }
+function clearAccSel()  { selAccounts.clear(); renderAccDropdown(); }
+function applyAccSel()  { closeDrop('accDrop'); updateAccLabel(); }
+
+function updateAccLabel() {
+  const btn = document.getElementById('accDropLabel');
+  if (selAccounts.size === 0) btn.textContent = 'All Accounts';
+  else btn.textContent = selAccounts.size + ' account' + (selAccounts.size!==1?'s':'') + ' selected';
+}
+
+// ── Date Range ──
+function setDateRange(value, label) {
+  perfDateRange = value; perfDateLabel = label;
+  document.getElementById('dateDropLabel').textContent = label;
+  document.querySelectorAll('#dateDrop .dropdown-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('dr_'+value);
+  if (el) el.classList.add('active');
+  closeDrop('dateDrop');
+}
+
+function applyCustomDate() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to) { showToast('Please select both dates'); return; }
+  if (from > to) { showToast('Start date must be before end date'); return; }
+  perfDateRange = { from, to };
+  perfDateLabel = from + ' → ' + to;
+  document.getElementById('dateDropLabel').textContent = perfDateLabel;
+  document.querySelectorAll('#dateDrop .dropdown-item').forEach(el => el.classList.remove('active'));
+  closeDrop('dateDrop');
+}
+
+// ── Column Toggles ──
+function renderColToggles() {
+  document.getElementById('colToggles').innerHTML = COL_DEFS.map(c => `
+    <div class="col-toggle" onclick="toggleCol('${c.key}')">
+      <input type="checkbox" id="col_${c.key}" ${visibleCols.has(c.key)?'checked':''} onchange="toggleCol('${c.key}')">
+      <span>${c.label}</span>
+    </div>`).join('');
+}
+
+function toggleCol(key) {
+  if (visibleCols.has(key)) { if (visibleCols.size > 1) visibleCols.delete(key); }
+  else visibleCols.add(key);
+  document.getElementById('col_'+key).checked = visibleCols.has(key);
+  renderPerfTable();
+}
+
+// ── Fetch Performance Data ──
+async function loadPerformance() {
+  const btn = document.getElementById('perfApplyBtn');
+  btn.disabled = true; btn.textContent = '⏳ Loading...';
+  document.getElementById('perfTableWrap').innerHTML = '<div class="perf-loading"><div class="spinner" style="margin:0 auto 12px"></div>Fetching performance data...</div>';
+
+  try {
+    // Determine which account IDs to fetch
+    let accountIds = [];
+    if (selAccounts.size > 0) {
+      accountIds = [...selAccounts];
+    } else if (selMccs.size > 0) {
+      selMccs.forEach(mccId => {
+        const m = perfMccs[mccId];
+        if (m) m.accounts.forEach(a => accountIds.push(a.accountId));
+      });
+    } else {
+      // All whitelisted accounts
+      accountIds = Object.keys(whitelistData).map(id => id.replace(/-/g,''));
+    }
+
+    if (!accountIds.length) {
+      document.getElementById('perfTableWrap').innerHTML = '<div class="perf-empty">No accounts selected. Go to Manage Logins to add accounts.</div>';
+      btn.disabled = false; btn.textContent = '▶ Run Report';
+      return;
+    }
+
+    const res = await api('/api/performance', 'POST', { accountIds, dateRange: perfDateRange });
+    perfData = res.accounts || [];
+    renderPerfTable();
+  } catch(e) {
+    document.getElementById('perfTableWrap').innerHTML = `<div class="perf-empty">❌ Error: ${esc(e.message)}</div>`;
+  }
+  btn.disabled = false; btn.textContent = '▶ Run Report';
+}
+
+// ── Render Performance Table ──
+function renderPerfTable() {
+  if (!perfData.length) {
+    document.getElementById('perfTableWrap').innerHTML = '<div class="perf-empty">No data returned for the selected accounts and date range.</div>';
+    return;
+  }
+
+  const cols = COL_DEFS.filter(c => visibleCols.has(c.key));
+
+  // Sort
+  const sorted = [...perfData].sort((a,b) => {
+    const av = a[perfSortCol] ?? 0, bv = b[perfSortCol] ?? 0;
+    return perfSortDir * (av < bv ? -1 : av > bv ? 1 : 0);
+  });
+
+  // Totals
+  const totals = {};
+  COL_DEFS.forEach(c => {
+    if (['ctr','avgCpc','costPerConv','convRate'].includes(c.key)) {
+      // Weighted averages
+      if (c.key === 'ctr')        totals[c.key] = safeDivide(sumField('clicks'), sumField('impressions')) * 100;
+      if (c.key === 'avgCpc')     totals[c.key] = safeDivide(sumField('cost'), sumField('clicks'));
+      if (c.key === 'costPerConv')totals[c.key] = safeDivide(sumField('cost'), sumField('conversions'));
+      if (c.key === 'convRate')   totals[c.key] = safeDivide(sumField('conversions'), sumField('clicks')) * 100;
+    } else {
+      totals[c.key] = sumField(c.key);
+    }
+  });
+
+  const rows = sorted.map(a => `
+    <tr>
+      <td>
+        <div class="perf-acc-name">${esc(a.accountName)}</div>
+        <div class="perf-acc-id">${esc(a.accountId)} · ${esc(a.loginEmail)}</div>
+      </td>
+      ${cols.map(c => `<td class="num">${fmtMetric(c.key, a[c.key], a.currency)}</td>`).join('')}
+    </tr>`).join('');
+
+  const totalsRow = `
+    <tr class="totals-row">
+      <td>Totals / Averages (${perfData.length} accounts)</td>
+      ${cols.map(c => `<td class="num">${fmtMetric(c.key, totals[c.key], '')}</td>`).join('')}
+    </tr>`;
+
+  const headers = cols.map(c => `
+    <th onclick="sortPerf('${c.key}')" class="${perfSortCol===c.key?'sorted':''}">
+      ${c.label} ${perfSortCol===c.key ? (perfSortDir===-1?'↓':'↑') : ''}
+    </th>`).join('');
+
+  document.getElementById('perfTableWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="text-align:left;cursor:default;">Account</th>
+        ${headers}
+      </tr></thead>
+      <tbody>${rows}${totalsRow}</tbody>
+    </table>`;
+}
+
+function sortPerf(col) {
+  if (perfSortCol === col) perfSortDir *= -1;
+  else { perfSortCol = col; perfSortDir = -1; }
+  renderPerfTable();
+}
+
+function sumField(key) { return perfData.reduce((s,a) => s + (a[key]||0), 0); }
+function safeDivide(a, b) { return b > 0 ? a/b : 0; }
+
+function fmtMetric(key, val, currency) {
+  if (val === null || val === undefined) return '—';
+  const curr = currency ? currency + ' ' : '';
+  if (key === 'impressions') return Number(val).toLocaleString('en-GB');
+  if (key === 'clicks')      return Number(val).toLocaleString('en-GB');
+  if (key === 'ctr')         return val.toFixed(2) + '%';
+  if (key === 'avgCpc')      return curr + val.toFixed(2);
+  if (key === 'cost')        return curr + Number(val).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (key === 'conversions') return val.toFixed(2);
+  if (key === 'costPerConv') return curr + val.toFixed(2);
+  if (key === 'convRate')    return val.toFixed(2) + '%';
+  return val;
+}
+
+// ── Dropdown helpers ──
+function toggleDrop(id) {
+  const menu = document.getElementById(id);
+  const isOpen = menu.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeDrop(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown-wrap')) {
+    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+// Init performance tab when navigating to it
+const origShowPage = showPage;
+// Monkey-patch showPage to init perf tab
+const _origShowPage = showPage;
+window.showPageOrig = showPage;
+
 </script>
 </body>
 </html>
