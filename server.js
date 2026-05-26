@@ -351,6 +351,9 @@ app.post('/api/performance', async (req, res) => {
     if (!Array.isArray(accountIds) || accountIds.length === 0)
       return res.status(400).json({ error: 'accountIds required' });
 
+    // Normalize all accountIds to no-dashes format
+    const cleanIds = accountIds.map(id => String(id).replace(/-/g, ''));
+
     const logins    = await getAllLogins();
     const whitelist = await getWhitelist();
     const results   = [];
@@ -358,49 +361,78 @@ app.post('/api/performance', async (req, res) => {
     // Build GAQL date condition
     const dateClause = buildDateClause(dateRange);
 
-    for (const login of logins) {
-      const myAccounts = whitelist.filter(w =>
-        accountIds.includes(w.account_id) && w.login_email === login.email
-      );
-      if (!myAccounts.length) continue;
+    // Build a map of accountId → whitelist entry for fast lookup
+    const whitelistMap = {};
+    whitelist.forEach(w => { whitelistMap[w.account_id] = w; });
+
+    // Also build a map of loginEmail → authClient (lazy)
+    const authClients = {};
+
+    for (const cleanId of cleanIds) {
+      const acc = whitelistMap[cleanId];
+      if (!acc) {
+        // Account not in whitelist — still show with zeros
+        results.push({
+          accountId: formatId(cleanId), accountName: cleanId,
+          mccId: '', loginEmail: '', currency: '',
+          impressions:0, clicks:0, ctr:0, avgCpc:0,
+          cost:0, conversions:0, costPerConv:0, convRate:0,
+          hasError:true, errorMsg:'Not found in whitelist'
+        });
+        continue;
+      }
+
+      // Get or create authClient for this login
+      if (!authClients[acc.login_email]) {
+        const login = logins.find(l => l.email === acc.login_email);
+        if (login) {
+          try { authClients[acc.login_email] = await getAuthClient(login); }
+          catch(e) { authClients[acc.login_email] = null; }
+        }
+      }
+      const authClient = authClients[acc.login_email];
+
+      if (!authClient) {
+        // Could not authenticate for this login
+        results.push({
+          accountId: formatId(acc.account_id), accountName: acc.account_name,
+          mccId: formatId(acc.mcc_id), loginEmail: acc.login_email, currency: acc.currency || '',
+          impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0,
+          hasError:true, errorMsg:'Authentication failed'
+        });
+        continue;
+      }
 
       try {
-        const authClient = await getAuthClient(login);
-        for (const acc of myAccounts) {
-          try {
-            const metrics = await getAccountMetrics(authClient, acc.account_id, acc.mcc_id, dateClause);
-            results.push({
-              accountId:   formatId(acc.account_id),
-              accountName: acc.account_name,
-              mccId:       formatId(acc.mcc_id),
-              loginEmail:  login.email,
-              currency:    metrics.currency || acc.currency || '',
-              impressions: metrics.impressions,
-              clicks:      metrics.clicks,
-              ctr:         metrics.ctr,
-              avgCpc:      metrics.avgCpc,
-              cost:        metrics.cost,
-              conversions: metrics.conversions,
-              costPerConv: metrics.costPerConv,
-              convRate:    metrics.convRate,
-              hasError:    metrics.hasError || false
-            });
-          } catch(e) {
-            console.error('Metrics error for', acc.account_id, e.message);
-            // Still include the account with zeros so it shows in the table
-            results.push({
-              accountId:   formatId(acc.account_id),
-              accountName: acc.account_name,
-              mccId:       formatId(acc.mcc_id),
-              loginEmail:  login.email,
-              currency:    acc.currency || '',
-              impressions: 0, clicks: 0, ctr: 0, avgCpc: 0,
-              cost: 0, conversions: 0, costPerConv: 0, convRate: 0,
-              hasError: true, errorMsg: e.message
-            });
-          }
-        }
-      } catch(e) { console.error('Auth error for', login.email, e.message); }
+        const metrics = await getAccountMetrics(authClient, acc.account_id, acc.mcc_id, dateClause);
+        results.push({
+          accountId:   formatId(acc.account_id),
+          accountName: acc.account_name,
+          mccId:       formatId(acc.mcc_id),
+          loginEmail:  acc.login_email,
+          currency:    metrics.currency || acc.currency || '',
+          impressions: metrics.impressions,
+          clicks:      metrics.clicks,
+          ctr:         metrics.ctr,
+          avgCpc:      metrics.avgCpc,
+          cost:        metrics.cost,
+          conversions: metrics.conversions,
+          costPerConv: metrics.costPerConv,
+          convRate:    metrics.convRate,
+          hasError:    metrics.hasError || false
+        });
+      } catch(e) {
+        console.error('Metrics error for', acc.account_id, e.message);
+        results.push({
+          accountId:   formatId(acc.account_id),
+          accountName: acc.account_name,
+          mccId:       formatId(acc.mcc_id),
+          loginEmail:  acc.login_email,
+          currency:    acc.currency || '',
+          impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0,
+          hasError:true, errorMsg:e.message
+        });
+      }
     }
 
     // Sort by cost descending
