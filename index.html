@@ -1345,7 +1345,7 @@ function renderPerfTable() {
 
   const rows = sorted.map(a => {
     const rowStyle = a.hasError ? 'opacity:0.6;' : '';
-    const errTip = a.errorMsg ? ` title="${a.errorMsg.replace(/"/g,\'\')}"` : '';
+    const errTip = a.errorMsg ? ' title="' + (a.errorMsg||'').replace(/"/g,"'") + '"' : '';
     const errorNote = a.hasError
       ? `<span style="font-size:9px;color:var(--red);font-family:var(--mono);margin-left:6px;cursor:help;"${errTip}>⚠ API error</span>`
       : (a.impressions === 0 && a.clicks === 0 && a.cost === 0)
