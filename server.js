@@ -338,4 +338,137 @@ function formatId(id) {
   return s.length === 10 ? `${s.slice(0,3)}-${s.slice(3,6)}-${s.slice(6)}` : s;
 }
 
+// ============================================================
+// PERFORMANCE METRICS API
+// POST /api/performance
+// Body: { accountIds: ['123','456'], dateRange: 'LAST_7_DAYS'|'LAST_30_DAYS'|'THIS_MONTH'|'LAST_MONTH'|'TODAY'|'YESTERDAY'|{from:'2024-01-01',to:'2024-01-31'} }
+// ============================================================
+app.post('/api/performance', async (req, res) => {
+  try {
+    const { accountIds, dateRange } = req.body;
+    if (!Array.isArray(accountIds) || accountIds.length === 0)
+      return res.status(400).json({ error: 'accountIds required' });
+
+    const logins    = await getAllLogins();
+    const whitelist = await getWhitelist();
+    const results   = [];
+
+    // Build GAQL date condition
+    const dateClause = buildDateClause(dateRange);
+
+    for (const login of logins) {
+      const myAccounts = whitelist.filter(w =>
+        accountIds.includes(w.account_id) && w.login_email === login.email
+      );
+      if (!myAccounts.length) continue;
+
+      try {
+        const authClient = await getAuthClient(login);
+        for (const acc of myAccounts) {
+          try {
+            const metrics = await getAccountMetrics(authClient, acc.account_id, acc.mcc_id, dateClause);
+            results.push({
+              accountId:   formatId(acc.account_id),
+              accountName: acc.account_name,
+              mccId:       formatId(acc.mcc_id),
+              loginEmail:  login.email,
+              currency:    metrics.currency,
+              impressions: metrics.impressions,
+              clicks:      metrics.clicks,
+              ctr:         metrics.ctr,
+              avgCpc:      metrics.avgCpc,
+              cost:        metrics.cost,
+              conversions: metrics.conversions,
+              costPerConv: metrics.costPerConv,
+              convRate:    metrics.convRate
+            });
+          } catch(e) { console.error('Metrics error for', acc.account_id, e.message); }
+        }
+      } catch(e) { console.error('Auth error for', login.email, e.message); }
+    }
+
+    // Sort by cost descending
+    results.sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    res.json({ accounts: results, generatedAt: new Date().toISOString() });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function buildDateClause(dateRange) {
+  if (!dateRange || dateRange === 'TODAY')       return 'DURING TODAY';
+  if (dateRange === 'YESTERDAY')                 return 'DURING YESTERDAY';
+  if (dateRange === 'LAST_7_DAYS')               return 'DURING LAST_7_DAYS';
+  if (dateRange === 'LAST_30_DAYS')              return 'DURING LAST_30_DAYS';
+  if (dateRange === 'THIS_MONTH')                return 'DURING THIS_MONTH';
+  if (dateRange === 'LAST_MONTH')                return 'DURING LAST_MONTH';
+  if (dateRange && dateRange.from && dateRange.to)
+    return `BETWEEN '${dateRange.from}' AND '${dateRange.to}'`;
+  return 'DURING LAST_30_DAYS';
+}
+
+async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
+  const token    = (await authClient.getAccessToken()).token;
+  const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const headers  = {
+    'Authorization': 'Bearer ' + token,
+    'developer-token': devToken,
+    'login-customer-id': mccId,
+    'Content-Type': 'application/json'
+  };
+
+  const query = `
+    SELECT
+      customer.currency_code,
+      metrics.impressions,
+      metrics.clicks,
+      metrics.ctr,
+      metrics.average_cpc,
+      metrics.cost_micros,
+      metrics.conversions,
+      metrics.cost_per_conversion,
+      metrics.conversions_from_interactions_rate
+    FROM customer
+    WHERE segments.date ${dateClause}
+  `;
+
+  const res  = await fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, {
+    method: 'POST', headers, body: JSON.stringify({ query })
+  });
+  const data = await res.json();
+
+  if (!res.ok || !data.results || !data.results.length) {
+    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0 };
+  }
+
+  // Aggregate across all rows (date segments)
+  let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
+  let currency = '';
+  data.results.forEach(r => {
+    impressions += parseInt(r.metrics?.impressions || 0);
+    clicks      += parseInt(r.metrics?.clicks || 0);
+    costMicros  += parseInt(r.metrics?.costMicros || 0);
+    conversions += parseFloat(r.metrics?.conversions || 0);
+    if (!currency) currency = r.customer?.currencyCode || '';
+  });
+
+  const cost      = Math.round((costMicros / 1e6) * 100) / 100;
+  const ctr       = clicks > 0 && impressions > 0 ? (clicks / impressions) * 100 : 0;
+  const avgCpc    = clicks > 0 ? (costMicros / 1e6) / clicks : 0;
+  const costPerConv = conversions > 0 ? cost / conversions : 0;
+  const convRate  = clicks > 0 ? (conversions / clicks) * 100 : 0;
+
+  return {
+    currency,
+    impressions,
+    clicks,
+    ctr:        Math.round(ctr * 100) / 100,
+    avgCpc:     Math.round(avgCpc * 100) / 100,
+    cost,
+    conversions: Math.round(conversions * 100) / 100,
+    costPerConv: Math.round(costPerConv * 100) / 100,
+    convRate:   Math.round(convRate * 100) / 100
+  };
+}
+
 app.listen(PORT, '0.0.0.0', () => console.log(`✅ Ads Monitor running on port ${PORT}`));
