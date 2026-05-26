@@ -161,7 +161,8 @@ app.get('/api/spend', async (req, res) => {
               rangePercent:  acc.range_percent || 10,
               pacing,
               loginEmail:    login.email,
-              mccId:         formatId(acc.mcc_id)
+              mccId:         formatId(acc.mcc_id),
+              mccName:       acc.mcc_name || ('MCC ' + acc.mcc_id)
             });
           } catch(e) { console.error('Spend error for', acc.account_id, e.message); }
         }
@@ -216,6 +217,7 @@ app.post('/api/whitelist', async (req, res) => {
       account_id:     accountId,
       account_name:   a.accountName,
       mcc_id:         String(a.mccId).replace(/-/g,''),
+      mcc_name:       a.mccName || null,
       login_email:    a.loginEmail,
       monthly_budget: a.monthlyBudget != null ? a.monthlyBudget : (prev?.monthly_budget ?? null),
       range_percent:  a.rangePercent  != null ? a.rangePercent  : (prev?.range_percent  ?? 10)
