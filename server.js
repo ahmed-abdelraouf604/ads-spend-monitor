@@ -458,12 +458,10 @@ function buildDateClause(dateRange) {
 async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
   const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-  const headers  = {
-    'Authorization': 'Bearer ' + token,
-    'developer-token': devToken,
-    'login-customer-id': mccId,
-    'Content-Type': 'application/json'
-  };
+
+  // Clean IDs — remove dashes
+  const cleanAccountId = String(accountId).replace(/-/g, '');
+  const cleanMccId     = String(mccId).replace(/-/g, '');
 
   const query = `
     SELECT
@@ -480,14 +478,30 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
     WHERE segments.date ${dateClause}
   `;
 
-  const res  = await fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, {
-    method: 'POST', headers, body: JSON.stringify({ query })
-  });
-  const data = await res.json();
+  // Try with MCC as login-customer-id first, then fall back to account itself
+  const loginIds = cleanMccId && cleanMccId !== cleanAccountId
+    ? [cleanMccId, cleanAccountId]
+    : [cleanAccountId];
+
+  let res, data;
+  for (const loginId of loginIds) {
+    const headers = {
+      'Authorization': 'Bearer ' + token,
+      'developer-token': devToken,
+      'login-customer-id': loginId,
+      'Content-Type': 'application/json'
+    };
+    res  = await fetch(`${ADS_BASE}/customers/${cleanAccountId}/googleAds:search`, {
+      method: 'POST', headers, body: JSON.stringify({ query })
+    });
+    data = await res.json();
+    if (res.ok) break; // success — stop trying
+    console.error(`Metrics API error for ${cleanAccountId} (login: ${loginId}):`, JSON.stringify(data).substring(0, 300));
+  }
 
   if (!res.ok) {
-    console.error('Metrics API error for', accountId, JSON.stringify(data).substring(0, 200));
-    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true };
+    const errMsg = data?.error?.message || JSON.stringify(data).substring(0, 100);
+    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true, errorMsg:errMsg };
   }
   if (!data.results || !data.results.length) {
     // Account has no data for this period — still return zeros (not an error)
