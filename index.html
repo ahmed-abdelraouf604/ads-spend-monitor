@@ -316,8 +316,8 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
         </button>
         <div class="dropdown-menu" id="mccDrop">
           <div class="dropdown-section">
-            <div class="dropdown-item" onclick="selectAllMccs()">
-              <input type="checkbox" id="mccAll" checked> <span>All MCCs</span>
+            <div class="dropdown-item" onclick="selectAllMccs(event)">
+              <input type="checkbox" id="mccAll" checked onclick="selectAllMccs(event)"> <span>All MCCs</span>
             </div>
           </div>
           <div class="dropdown-section" id="mccList"></div>
@@ -335,8 +335,8 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
         </button>
         <div class="dropdown-menu" id="accDrop" style="min-width:280px;">
           <div class="dropdown-section">
-            <div class="dropdown-item" onclick="selectAllAccounts()">
-              <input type="checkbox" id="accAll" checked> <span>All Accounts</span>
+            <div class="dropdown-item" onclick="selectAllAccounts(event)">
+              <input type="checkbox" id="accAll" checked onclick="selectAllAccounts(event)"> <span>All Accounts</span>
             </div>
           </div>
           <div class="dropdown-section" id="accList"></div>
@@ -1060,25 +1060,33 @@ function initPerformanceTab() {
 function renderMccDropdown() {
   const list = document.getElementById('mccList');
   const mccs = Object.values(perfMccs);
-  list.innerHTML = mccs.map(m => `
-    <div class="dropdown-item" onclick="toggleMccSel('${m.mccId}')">
-      <input type="checkbox" id="mcc_${m.mccId}" ${selMccs.size===0||selMccs.has(m.mccId)?'checked':''}>
+  list.innerHTML = mccs.map(m => {
+    const isChecked = selMccs.size === 0 || selMccs.has(m.mccId);
+    return `<div class="dropdown-item" onclick="toggleMccSel('${m.mccId}', event)">
+      <input type="checkbox" id="mcc_${m.mccId}" ${isChecked?'checked':''} onclick="toggleMccSel('${m.mccId}', event)">
       <span>${esc(m.mccName)}</span>
       <span style="margin-left:auto;font-size:10px;color:var(--text3);">${m.accounts.length}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   updateMccLabel();
 }
 
-function toggleMccSel(mccId) {
+function toggleMccSel(mccId, e) {
+  if (e) e.stopPropagation();
+  // If currently "all selected" (selMccs empty), start with all MCCs selected explicitly
+  if (selMccs.size === 0) {
+    Object.keys(perfMccs).forEach(id => selMccs.add(id));
+  }
   if (selMccs.has(mccId)) selMccs.delete(mccId);
   else selMccs.add(mccId);
-  document.getElementById('mcc_'+mccId).checked = selMccs.size===0 || selMccs.has(mccId);
-  document.getElementById('mccAll').checked = selMccs.size === 0;
-  updateMccLabel();
-  renderAccDropdown(); // update account list based on MCC selection
+  // If all MCCs selected explicitly, revert to empty (= all)
+  if (selMccs.size === Object.keys(perfMccs).length) selMccs.clear();
+  renderMccDropdown();
+  renderAccDropdown();
 }
 
-function selectAllMccs() {
+function selectAllMccs(e) {
+  if (e) e.stopPropagation();
   selMccs.clear();
   renderMccDropdown();
   renderAccDropdown();
@@ -1104,25 +1112,42 @@ function renderAccDropdown() {
 
   list.innerHTML = mccsToShow.map(m => `
     <div class="dropdown-section-label">${esc(m.mccName)}</div>
-    ${m.accounts.map(a => `
-      <div class="dropdown-item" onclick="toggleAccSel('${a.accountId}')">
-        <input type="checkbox" id="acc_${a.accountId}" ${selAccounts.size===0||selAccounts.has(a.accountId)?'checked':''}>
+    ${m.accounts.map(a => {
+      const isChecked = selAccounts.size === 0 || selAccounts.has(a.accountId);
+      return `<div class="dropdown-item" onclick="toggleAccSel('${a.accountId}', event)">
+        <input type="checkbox" id="acc_${a.accountId}" ${isChecked?'checked':''} onclick="toggleAccSel('${a.accountId}', event)">
         <span>${esc(a.accountName)}</span>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
   `).join('');
   updateAccLabel();
 }
 
-function toggleAccSel(accountId) {
+function toggleAccSel(accountId, e) {
+  if (e) e.stopPropagation();
+  // Get all visible accounts
+  const allVisible = [];
+  const mccsToShow = selMccs.size > 0
+    ? Object.values(perfMccs).filter(m => selMccs.has(m.mccId))
+    : Object.values(perfMccs);
+  mccsToShow.forEach(m => m.accounts.forEach(a => allVisible.push(a.accountId)));
+
+  // If currently "all" mode, explicitly select all except this one
+  if (selAccounts.size === 0) {
+    allVisible.forEach(id => selAccounts.add(id));
+  }
   if (selAccounts.has(accountId)) selAccounts.delete(accountId);
   else selAccounts.add(accountId);
-  const cb = document.getElementById('acc_'+accountId);
-  if (cb) cb.checked = selAccounts.size===0 || selAccounts.has(accountId);
-  document.getElementById('accAll').checked = selAccounts.size === 0;
-  updateAccLabel();
+  // If all explicitly selected, revert to empty (= all)
+  if (selAccounts.size === allVisible.length) selAccounts.clear();
+  renderAccDropdown();
 }
 
-function selectAllAccounts() { selAccounts.clear(); renderAccDropdown(); }
+function selectAllAccounts(e) {
+  if (e) e.stopPropagation();
+  selAccounts.clear();
+  renderAccDropdown();
+}
 function clearAccSel()  { selAccounts.clear(); renderAccDropdown(); }
 function applyAccSel()  { closeDrop('accDrop'); updateAccLabel(); }
 
@@ -1157,13 +1182,14 @@ function applyCustomDate() {
 // ── Column Toggles ──
 function renderColToggles() {
   document.getElementById('colToggles').innerHTML = COL_DEFS.map(c => `
-    <div class="col-toggle" onclick="toggleCol('${c.key}')">
-      <input type="checkbox" id="col_${c.key}" ${visibleCols.has(c.key)?'checked':''} onchange="toggleCol('${c.key}')">
+    <div class="col-toggle" onclick="toggleCol('${c.key}', event)">
+      <input type="checkbox" id="col_${c.key}" ${visibleCols.has(c.key)?'checked':''} onclick="toggleCol('${c.key}', event)">
       <span>${c.label}</span>
     </div>`).join('');
 }
 
-function toggleCol(key) {
+function toggleCol(key, e) {
+  if (e) e.stopPropagation();
   if (visibleCols.has(key)) { if (visibleCols.size > 1) visibleCols.delete(key); }
   else visibleCols.add(key);
   document.getElementById('col_'+key).checked = visibleCols.has(key);
