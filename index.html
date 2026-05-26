@@ -1007,8 +1007,11 @@ function showToast(msg){
 
 // State
 let perfMccs     = {};   // mccId → {mccId, mccName, accounts:[]}
-let selMccs      = new Set();  // selected MCC IDs (empty = all)
-let selAccounts  = new Set();  // selected account IDs (empty = all)
+let selMccs      = new Set();  // selected MCC IDs — null-like empty = all; explicit IDs = filtered
+let selAccounts  = new Set();  // selected account IDs
+let mccMode      = 'all';      // 'all' | 'some' | 'none'
+let accMode      = 'all';      // 'all' | 'some' | 'none'
+
 let perfDateRange = 'LAST_30_DAYS';
 let perfDateLabel = 'Last 30 days';
 let perfData     = [];
@@ -1060,8 +1063,15 @@ function initPerformanceTab() {
 function renderMccDropdown() {
   const list = document.getElementById('mccList');
   const mccs = Object.values(perfMccs);
+  // "All MCCs" checkbox: checked only when mccMode === 'all'
+  const allCb = document.getElementById('mccAll');
+  if (allCb) allCb.checked = mccMode === 'all';
+
   list.innerHTML = mccs.map(m => {
-    const isChecked = selMccs.size === 0 || selMccs.has(m.mccId);
+    let isChecked;
+    if (mccMode === 'all')  isChecked = true;
+    else if (mccMode === 'none') isChecked = false;
+    else isChecked = selMccs.has(m.mccId);
     return `<div class="dropdown-item" onclick="toggleMccSel('${m.mccId}', event)">
       <input type="checkbox" id="mcc_${m.mccId}" ${isChecked?'checked':''} onclick="toggleMccSel('${m.mccId}', event)">
       <span>${esc(m.mccName)}</span>
@@ -1073,31 +1083,44 @@ function renderMccDropdown() {
 
 function toggleMccSel(mccId, e) {
   if (e) e.stopPropagation();
-  // If currently "all selected" (selMccs empty), start with all MCCs selected explicitly
-  if (selMccs.size === 0) {
-    Object.keys(perfMccs).forEach(id => selMccs.add(id));
+  if (mccMode === 'all') {
+    // Was all-selected: switch to some mode, select all except this one
+    mccMode = 'some';
+    selMccs.clear();
+    Object.keys(perfMccs).forEach(id => { if (id !== mccId) selMccs.add(id); });
+  } else if (mccMode === 'none') {
+    // Was none-selected: select just this one
+    mccMode = 'some';
+    selMccs.clear();
+    selMccs.add(mccId);
+  } else {
+    // Some mode: toggle this MCC
+    if (selMccs.has(mccId)) selMccs.delete(mccId);
+    else selMccs.add(mccId);
+    // If all checked → all mode; if none checked → none mode
+    if (selMccs.size === Object.keys(perfMccs).length) { mccMode = 'all'; selMccs.clear(); }
+    else if (selMccs.size === 0) mccMode = 'none';
   }
-  if (selMccs.has(mccId)) selMccs.delete(mccId);
-  else selMccs.add(mccId);
-  // If all MCCs selected explicitly, revert to empty (= all)
-  if (selMccs.size === Object.keys(perfMccs).length) selMccs.clear();
   renderMccDropdown();
   renderAccDropdown();
 }
 
 function selectAllMccs(e) {
   if (e) e.stopPropagation();
+  // Toggle: if all → none; if none/some → all
+  mccMode = mccMode === 'all' ? 'none' : 'all';
   selMccs.clear();
   renderMccDropdown();
   renderAccDropdown();
 }
 
-function clearMccSel() { selMccs.clear(); renderMccDropdown(); renderAccDropdown(); }
+function clearMccSel() { mccMode = 'none'; selMccs.clear(); renderMccDropdown(); renderAccDropdown(); }
 function applyMccSel() { closeDrop('mccDrop'); renderAccDropdown(); }
 
 function updateMccLabel() {
   const btn = document.getElementById('mccDropLabel');
-  if (selMccs.size === 0) btn.textContent = 'All MCCs';
+  if (mccMode === 'all')  btn.textContent = 'All MCCs';
+  else if (mccMode === 'none') btn.textContent = 'No MCCs selected';
   else if (selMccs.size === 1) btn.textContent = perfMccs[[...selMccs][0]]?.mccName || '1 MCC';
   else btn.textContent = selMccs.size + ' MCCs selected';
 }
@@ -1106,14 +1129,22 @@ function updateMccLabel() {
 function renderAccDropdown() {
   const list = document.getElementById('accList');
   // Get accounts from selected MCCs (or all if none selected)
-  const mccsToShow = selMccs.size > 0
-    ? Object.values(perfMccs).filter(m => selMccs.has(m.mccId))
-    : Object.values(perfMccs);
+  const mccsToShow = mccMode === 'all'
+    ? Object.values(perfMccs)
+    : mccMode === 'none' ? []
+    : Object.values(perfMccs).filter(m => selMccs.has(m.mccId));
+
+  // Update "All Accounts" checkbox
+  const allAccCb = document.getElementById('accAll');
+  if (allAccCb) allAccCb.checked = accMode === 'all';
 
   list.innerHTML = mccsToShow.map(m => `
     <div class="dropdown-section-label">${esc(m.mccName)}</div>
     ${m.accounts.map(a => {
-      const isChecked = selAccounts.size === 0 || selAccounts.has(a.accountId);
+      let isChecked;
+      if (accMode === 'all') isChecked = true;
+      else if (accMode === 'none') isChecked = false;
+      else isChecked = selAccounts.has(a.accountId);
       return `<div class="dropdown-item" onclick="toggleAccSel('${a.accountId}', event)">
         <input type="checkbox" id="acc_${a.accountId}" ${isChecked?'checked':''} onclick="toggleAccSel('${a.accountId}', event)">
         <span>${esc(a.accountName)}</span>
@@ -1125,35 +1156,48 @@ function renderAccDropdown() {
 
 function toggleAccSel(accountId, e) {
   if (e) e.stopPropagation();
-  // Get all visible accounts
-  const allVisible = [];
-  const mccsToShow = selMccs.size > 0
-    ? Object.values(perfMccs).filter(m => selMccs.has(m.mccId))
-    : Object.values(perfMccs);
-  mccsToShow.forEach(m => m.accounts.forEach(a => allVisible.push(a.accountId)));
-
-  // If currently "all" mode, explicitly select all except this one
-  if (selAccounts.size === 0) {
-    allVisible.forEach(id => selAccounts.add(id));
+  const allVisible = getVisibleAccounts();
+  if (accMode === 'all') {
+    accMode = 'some';
+    selAccounts.clear();
+    allVisible.forEach(id => { if (id !== accountId) selAccounts.add(id); });
+  } else if (accMode === 'none') {
+    accMode = 'some';
+    selAccounts.clear();
+    selAccounts.add(accountId);
+  } else {
+    if (selAccounts.has(accountId)) selAccounts.delete(accountId);
+    else selAccounts.add(accountId);
+    if (selAccounts.size === allVisible.length) { accMode = 'all'; selAccounts.clear(); }
+    else if (selAccounts.size === 0) accMode = 'none';
   }
-  if (selAccounts.has(accountId)) selAccounts.delete(accountId);
-  else selAccounts.add(accountId);
-  // If all explicitly selected, revert to empty (= all)
-  if (selAccounts.size === allVisible.length) selAccounts.clear();
   renderAccDropdown();
 }
 
 function selectAllAccounts(e) {
   if (e) e.stopPropagation();
+  accMode = accMode === 'all' ? 'none' : 'all';
   selAccounts.clear();
   renderAccDropdown();
 }
-function clearAccSel()  { selAccounts.clear(); renderAccDropdown(); }
+
+function getVisibleAccounts() {
+  const mccsToShow = mccMode === 'all'
+    ? Object.values(perfMccs)
+    : mccMode === 'none' ? []
+    : Object.values(perfMccs).filter(m => selMccs.has(m.mccId));
+  const ids = [];
+  mccsToShow.forEach(m => m.accounts.forEach(a => ids.push(a.accountId)));
+  return ids;
+}
+
+function clearAccSel()  { accMode = 'none'; selAccounts.clear(); renderAccDropdown(); }
 function applyAccSel()  { closeDrop('accDrop'); updateAccLabel(); }
 
 function updateAccLabel() {
   const btn = document.getElementById('accDropLabel');
-  if (selAccounts.size === 0) btn.textContent = 'All Accounts';
+  if (accMode === 'all')  btn.textContent = 'All Accounts';
+  else if (accMode === 'none') btn.textContent = 'No accounts selected';
   else btn.textContent = selAccounts.size + ' account' + (selAccounts.size!==1?'s':'') + ' selected';
 }
 
@@ -1205,13 +1249,18 @@ async function loadPerformance() {
   try {
     // Determine which account IDs to fetch
     let accountIds = [];
-    if (selAccounts.size > 0) {
+    if (accMode === 'some') {
       accountIds = [...selAccounts];
-    } else if (selMccs.size > 0) {
+    } else if (accMode === 'none') {
+      accountIds = [];
+    } else if (mccMode === 'some') {
+      // All accounts from selected MCCs
       selMccs.forEach(mccId => {
         const m = perfMccs[mccId];
         if (m) m.accounts.forEach(a => accountIds.push(a.accountId));
       });
+    } else if (mccMode === 'none') {
+      accountIds = [];
     } else {
       // All whitelisted accounts
       accountIds = Object.keys(whitelistData).map(id => id.replace(/-/g,''));
