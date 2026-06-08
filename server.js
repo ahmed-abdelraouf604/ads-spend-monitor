@@ -10,6 +10,7 @@ const { google }       = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 const path             = require('path');
 const crypto           = require('crypto');
+const bcrypt           = require('bcrypt');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -29,39 +30,13 @@ app.use(session({
 }));
 
 // ============================================================
-// PASSWORD GATE  +  DEVICE / SESSION MANAGER
+// AUTH  +  DEVICE / SESSION MANAGER
 //
 // Each login creates a row in the "sessions" Supabase table
 // keyed by the express session ID.  requireAuth checks the DB
 // (cached 60 s in memory) so revocation takes effect quickly
 // and server restarts don't log anyone out.
 // ============================================================
-const REMEMBER_COOKIE  = 'ads_auth';
-const REMEMBER_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 1 year
-
-function makeAuthToken() {
-  const secret = process.env.SESSION_SECRET || 'change-this-secret';
-  const pw     = process.env.APP_PASSWORD   || '';
-  return crypto.createHmac('sha256', secret).update(pw).digest('hex');
-}
-
-function parseCookies(req) {
-  const out = {};
-  (req.headers.cookie || '').split(';').forEach(part => {
-    const [k, ...rest] = part.trim().split('=');
-    if (k) out[k.trim()] = decodeURIComponent(rest.join('=').trim());
-  });
-  return out;
-}
-
-function isRemembered(req) {
-  const cookies = parseCookies(req);
-  const token   = cookies[REMEMBER_COOKIE];
-  if (!token) return false;
-  const expected = makeAuthToken();
-  if (token.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
-}
 
 function getClientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -91,6 +66,8 @@ async function upsertDbSession(req) {
     session_id:   req.sessionID,
     ip_address:   getClientIp(req),
     user_agent:   req.headers['user-agent'] || '',
+    user_id:      req.session.userId  || null,
+    username:     req.session.username || null,
     created_at:   now,
     last_seen_at: now
   }, { onConflict: 'session_id' });
@@ -101,8 +78,6 @@ async function requireAuth(req, res, next) {
   try {
     if (await isSessionValid(req.sessionID)) return next();
   } catch(e) { console.error('requireAuth:', e.message); }
-  // No fallback here — revoked sessions must stay revoked.
-  // HMAC / in-memory migration happens only in /auth/check at page load.
   res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -111,21 +86,52 @@ function requireAdmin(req, res, next) {
   res.status(403).json({ error: 'Admin access required' });
 }
 
-app.post('/auth/password', async (req, res) => {
-  const { password } = req.body;
-  const appPw   = process.env.APP_PASSWORD;
+// Returns null for admins (no restriction) or a Set<account_id> for regular users
+async function getUserAllowedAccounts(req) {
+  if (req.session.isAdmin) return null;
+  const { data } = await supabase.from('user_accounts')
+    .select('account_id').eq('user_id', req.session.userId);
+  return new Set((data || []).map(r => r.account_id));
+}
+
+// ── Bootstrap admin on first run ──
+async function bootstrapAdmin() {
   const adminPw = process.env.ADMIN_PASSWORD;
-  if (!appPw) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
+  if (!adminPw) {
+    console.log('⚠️  ADMIN_PASSWORD not set — skipping admin bootstrap');
+    return;
+  }
+  try {
+    const { data: users } = await supabase.from('users').select('id').limit(1);
+    if (users && users.length > 0) return; // already have users
+    const hash = await bcrypt.hash(adminPw, 10);
+    const { error } = await supabase.from('users')
+      .insert({ username: 'admin', password_hash: hash, is_admin: true });
+    if (error) console.error('Bootstrap admin error:', error.message);
+    else console.log('✅ Admin user "admin" created');
+  } catch(e) { console.error('bootstrapAdmin:', e.message); }
+}
 
-  const isAdmin = adminPw && password === adminPw;
-  const isUser  = password === appPw;
-  if (!isAdmin && !isUser) return res.status(401).json({ error: 'Incorrect password' });
+// ── Login / Logout ──
+app.post('/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password)
+    return res.status(400).json({ error: 'Username and password required' });
 
-  req.session.authenticated = true;
-  req.session.isAdmin       = isAdmin;
+  const { data: user } = await supabase.from('users').select('*')
+    .eq('username', username).maybeSingle();
+  if (!user)
+    return res.status(401).json({ error: 'Invalid username or password' });
+
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match)
+    return res.status(401).json({ error: 'Invalid username or password' });
+
+  req.session.userId   = user.id;
+  req.session.username = user.username;
+  req.session.isAdmin  = user.is_admin;
   await upsertDbSession(req);
-  res.cookie(REMEMBER_COOKIE, makeAuthToken(), { httpOnly: true, maxAge: REMEMBER_MAX_AGE, sameSite: 'lax' });
-  res.json({ success: true, isAdmin });
+  res.json({ success: true, isAdmin: user.is_admin });
 });
 
 app.post('/auth/logout', async (req, res) => {
@@ -134,7 +140,6 @@ app.post('/auth/logout', async (req, res) => {
     delete authCache[req.sessionID];
     delete lastSeenCache[req.sessionID];
   }
-  res.clearCookie(REMEMBER_COOKIE);
   req.session.destroy(() => res.json({ success: true }));
 });
 
@@ -146,7 +151,7 @@ app.get('/auth/check', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ isAdmin: !!req.session.isAdmin });
+  res.json({ username: req.session.username || '', isAdmin: !!req.session.isAdmin });
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -206,7 +211,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // ─────────────────────────────────────────────
-// DEVICE MANAGER  — session CRUD
+// DEVICE MANAGER  — session CRUD (admin only)
 // ─────────────────────────────────────────────
 app.get('/api/sessions', requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from('sessions').select('*')
@@ -219,6 +224,7 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
       isCurrent:  s.session_id === current,
       ipAddress:  s.ip_address,
       userAgent:  s.user_agent,
+      username:   s.username || 'Unknown',
       createdAt:  s.created_at,
       lastSeenAt: s.last_seen_at
     }))
@@ -255,7 +261,86 @@ app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// AUTH
+// ─────────────────────────────────────────────
+// USER MANAGEMENT  (admin only)
+// ─────────────────────────────────────────────
+app.get('/api/users', requireAdmin, async (req, res) => {
+  const { data: users, error } = await supabase
+    .from('users').select('id,username,is_admin,created_at')
+    .order('created_at', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  const { data: assignments } = await supabase.from('user_accounts').select('user_id');
+  const counts = {};
+  (assignments || []).forEach(r => { counts[r.user_id] = (counts[r.user_id] || 0) + 1; });
+  res.json({ users: (users || []).map(u => ({ ...u, accountCount: counts[u.id] || 0 })) });
+});
+
+app.post('/api/users', requireAdmin, async (req, res) => {
+  const { username, password, isAdmin } = req.body;
+  if (!username || !password)
+    return res.status(400).json({ error: 'Username and password required' });
+  const hash = await bcrypt.hash(password, 10);
+  const { data, error } = await supabase.from('users')
+    .insert({ username, password_hash: hash, is_admin: !!isAdmin })
+    .select('id,username,is_admin').single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ user: data });
+});
+
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+  if (req.params.id === req.session.userId)
+    return res.status(400).json({ error: 'Cannot delete your own account' });
+  const { error } = await supabase.from('users').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+app.patch('/api/users/:id/password', requireAdmin, async (req, res) => {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Password required' });
+  const hash = await bcrypt.hash(password, 10);
+  const { error } = await supabase.from('users')
+    .update({ password_hash: hash }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+app.get('/api/users/:id/accounts', requireAdmin, async (req, res) => {
+  const { data, error } = await supabase.from('user_accounts')
+    .select('account_id').eq('user_id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ accountIds: (data || []).map(r => r.account_id) });
+});
+
+app.put('/api/users/:id/accounts', requireAdmin, async (req, res) => {
+  const { accountIds } = req.body;
+  if (!Array.isArray(accountIds))
+    return res.status(400).json({ error: 'accountIds must be array' });
+  await supabase.from('user_accounts').delete().eq('user_id', req.params.id);
+  if (accountIds.length > 0) {
+    const rows = accountIds.map(id => ({
+      user_id:    req.params.id,
+      account_id: String(id).replace(/-/g, '')
+    }));
+    const { error } = await supabase.from('user_accounts').insert(rows);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  res.json({ success: true });
+});
+
+// Returns the current user's assigned account IDs
+app.get('/api/me/accounts', requireAuth, async (req, res) => {
+  if (req.session.isAdmin) {
+    const { data } = await supabase.from('whitelist').select('account_id');
+    return res.json({ accountIds: (data || []).map(r => r.account_id) });
+  }
+  const { data, error } = await supabase.from('user_accounts')
+    .select('account_id').eq('user_id', req.session.userId);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ accountIds: (data || []).map(r => r.account_id) });
+});
+
+// AUTH — Google OAuth
 app.get('/auth/url', (req, res) => {
   const oauth2Client = makeOAuth2Client();
   const url = oauth2Client.generateAuthUrl({
@@ -327,11 +412,15 @@ app.get('/api/accounts', async (req, res) => {
 // SPEND + PACING
 app.get('/api/spend', async (req, res) => {
   try {
-    const logins    = await getAllLogins();
-    const whitelist = await getWhitelist();
-    const results   = [];
+    const logins         = await getAllLogins();
+    const whitelist      = await getWhitelist();
+    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin (all)
+    const results        = [];
+
     for (const login of logins) {
-      const myAccounts = whitelist.filter(w => w.login_email === login.email);
+      let myAccounts = whitelist.filter(w => w.login_email === login.email);
+      if (allowedAccounts !== null)
+        myAccounts = myAccounts.filter(w => allowedAccounts.has(w.account_id));
       if (!myAccounts.length) continue;
       try {
         const authClient = await getAuthClient(login);
@@ -386,18 +475,15 @@ app.post('/api/whitelist', async (req, res) => {
   const { accounts, removed } = req.body;
   if (!Array.isArray(accounts)) return res.status(400).json({ error: 'accounts must be array' });
 
-  // 1. Delete explicitly removed accounts
   if (Array.isArray(removed) && removed.length > 0) {
     const ids = removed.map(id => String(id).replace(/-/g,''));
     await supabase.from('whitelist').delete().in('account_id', ids);
   }
 
-  // 2. Fetch existing budgets so we preserve them
   const { data: existing } = await supabase.from('whitelist').select('account_id,monthly_budget,range_percent');
   const existingMap = {};
   (existing || []).forEach(r => { existingMap[r.account_id] = r; });
 
-  // 3. Upsert new/updated accounts — preserve existing budget if not provided
   for (const a of accounts) {
     const accountId = String(a.accountId).replace(/-/g,'');
     const prev = existingMap[accountId];
@@ -417,7 +503,6 @@ app.post('/api/whitelist', async (req, res) => {
   res.json({ success: true, saved: accounts.length });
 });
 
-// DELETE single account from whitelist
 app.delete('/api/whitelist/:accountId', async (req, res) => {
   const accountId = req.params.accountId.replace(/-/g,'');
   const { error } = await supabase.from('whitelist').delete().eq('account_id', accountId);
@@ -531,7 +616,6 @@ function formatId(id) {
 // ============================================================
 // PERFORMANCE METRICS API
 // POST /api/performance
-// Body: { accountIds: ['123','456'], dateRange: 'LAST_7_DAYS'|'LAST_30_DAYS'|'THIS_MONTH'|'LAST_MONTH'|'TODAY'|'YESTERDAY'|{from:'2024-01-01',to:'2024-01-31'} }
 // ============================================================
 app.post('/api/performance', async (req, res) => {
   try {
@@ -539,28 +623,30 @@ app.post('/api/performance', async (req, res) => {
     if (!Array.isArray(accountIds) || accountIds.length === 0)
       return res.status(400).json({ error: 'accountIds required' });
 
-    // Normalize all accountIds to no-dashes format
-    const cleanIds = accountIds.map(id => String(id).replace(/-/g, ''));
+    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin
+
+    // Normalize and filter by user permissions
+    let cleanIds = accountIds.map(id => String(id).replace(/-/g, ''));
+    if (allowedAccounts !== null)
+      cleanIds = cleanIds.filter(id => allowedAccounts.has(id));
+
+    if (!cleanIds.length)
+      return res.json({ accounts: [], generatedAt: new Date().toISOString() });
 
     const logins    = await getAllLogins();
     const whitelist = await getWhitelist();
     const results   = [];
-
-    // Build GAQL date condition
     const dateClause = buildDateClause(dateRange);
 
-    // Build a map of accountId → whitelist entry for fast lookup
     const whitelistMap = {};
     whitelist.forEach(w => { whitelistMap[w.account_id] = w; });
 
-    // Also build maps of loginEmail → authClient and → accessible customer IDs (lazy)
     const authClients        = {};
     const accessibleIdsCache = {};
 
     for (const cleanId of cleanIds) {
       const acc = whitelistMap[cleanId];
       if (!acc) {
-        // Account not in whitelist — try all available logins to fetch metrics
         let found = false;
         for (const login of logins) {
           try {
@@ -599,7 +685,6 @@ app.post('/api/performance', async (req, res) => {
         continue;
       }
 
-      // Get or create authClient + accessible customers for this login
       if (!authClients[acc.login_email]) {
         const login = logins.find(l => l.email === acc.login_email);
         if (login) {
@@ -613,7 +698,6 @@ app.post('/api/performance', async (req, res) => {
       const authClient = authClients[acc.login_email];
 
       if (!authClient) {
-        // Could not authenticate for this login
         results.push({
           accountId: formatId(acc.account_id), accountName: acc.account_name,
           mccId: formatId(acc.mcc_id), loginEmail: acc.login_email, currency: acc.currency || '',
@@ -656,7 +740,6 @@ app.post('/api/performance', async (req, res) => {
       }
     }
 
-    // Sort by cost descending
     results.sort((a, b) => (b.cost || 0) - (a.cost || 0));
     res.json({ accounts: results, generatedAt: new Date().toISOString() });
   } catch(err) {
@@ -715,14 +798,12 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
 
   let result = null;
 
-  // 1. Try the stored MCC first
   if (cleanMccId && cleanMccId !== cleanAccountId) {
     const { ok, data } = await tryFetch(cleanMccId);
     if (ok) result = data;
     else console.error(`Metrics error for ${cleanAccountId} (login: ${cleanMccId}):`, JSON.stringify(data).substring(0, 200));
   }
 
-  // 2. Stored MCC failed — try every accessible customer ID as login-customer-id
   if (!result) {
     for (const loginId of accessibleIds) {
       if (loginId === cleanMccId || loginId === cleanAccountId) continue;
@@ -731,7 +812,6 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
     }
   }
 
-  // 3. Last resort: use the account itself as login-customer-id
   if (!result) {
     const { ok, data } = await tryFetch(cleanAccountId);
     if (ok) result = data;
@@ -776,4 +856,7 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
   };
 }
 
-app.listen(PORT, '0.0.0.0', () => console.log(`✅ Ads Monitor running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Ads Monitor running on port ${PORT}`);
+  bootstrapAdmin();
+});

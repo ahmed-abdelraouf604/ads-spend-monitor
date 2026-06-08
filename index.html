@@ -256,16 +256,20 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <div style="text-align:center;margin-bottom:28px;">
       <div style="width:48px;height:48px;background:#2563eb;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px;">⚡</div>
       <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.4px;">Ads Monitor</div>
-      <div style="font-size:12px;color:#8892aa;margin-top:4px;">Enter the password to continue</div>
+      <div style="font-size:12px;color:#8892aa;margin-top:4px;">Sign in to continue</div>
     </div>
+    <input id="authUsernameInput" type="text" placeholder="Username"
+      style="width:100%;background:#131625;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 14px;font-size:14px;color:#fff;outline:none;font-family:var(--mono);box-sizing:border-box;margin-bottom:10px;"
+      onkeydown="if(event.key==='Enter')document.getElementById('authPasswordInput').focus()"
+      onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"/>
     <input id="authPasswordInput" type="password" placeholder="Password"
       style="width:100%;background:#131625;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 14px;font-size:14px;color:#fff;outline:none;font-family:var(--mono);box-sizing:border-box;"
-      onkeydown="if(event.key==='Enter')submitPassword()"
+      onkeydown="if(event.key==='Enter')submitLogin()"
       onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"/>
     <div id="authError" style="color:#f87171;font-size:12px;margin-top:8px;min-height:18px;"></div>
-    <button onclick="submitPassword()"
+    <button onclick="submitLogin()"
       style="width:100%;margin-top:8px;padding:11px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">
-      Unlock
+      Sign in
     </button>
   </div>
 </div>
@@ -276,10 +280,11 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <div><div class="logo-text">Ads Monitor</div><div class="logo-sub">Spend Dashboard</div></div>
   </div>
   <nav class="sidebar-nav">
-    <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
-    <button class="nav-item" onclick="showPage('performance')"><span class="nav-icon">📈</span> Performance</button>
-    <button class="nav-item" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
-    <button class="nav-item" id="devicesNavItem" style="display:none;" onclick="showPage('devices')"><span class="nav-icon">🛡️</span> Devices</button>
+    <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
+    <button class="nav-item" data-page="performance" onclick="showPage('performance')"><span class="nav-icon">📈</span> Performance</button>
+    <button class="nav-item" data-page="accounts" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
+    <button class="nav-item" data-page="devices" id="devicesNavItem" style="display:none;" onclick="showPage('devices')"><span class="nav-icon">🛡️</span> Devices</button>
+    <button class="nav-item" data-page="users" id="usersNavItem" style="display:none;" onclick="showPage('users')"><span class="nav-icon">👥</span> Users</button>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-stats">Logins: <span id="sbLogins">0</span> &nbsp;·&nbsp; Accounts: <span id="sbAccounts">0</span></div>
@@ -292,6 +297,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <div class="topbar-right">
       <div class="status-pill"><div class="dot" id="statusDot"></div><span id="statusText">—</span></div>
       <button class="btn btn-ghost" id="refreshBtn" onclick="loadSpend()" disabled>↺ Refresh</button>
+      <span id="topbarUsername" style="font-size:12px;color:var(--text2);font-family:var(--mono);"></span>
       <button class="btn btn-ghost" onclick="signOutCurrent()" title="Sign out" style="color:var(--text2);">⏏ Sign out</button>
     </div>
   </div>
@@ -420,7 +426,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
         <div><div class="section-title">Google Account Logins</div><div class="section-sub">Connect accounts · Select sub-accounts · Set budgets</div></div>
         <div class="section-actions">
           <span id="selectionCount" style="font-size:11px;color:var(--text2);font-family:var(--mono)"></span>
-          <button class="btn btn-primary btn-sm" onclick="saveWhitelist()">💾 Save Selection</button>
+          <button class="btn btn-primary btn-sm" id="saveSelectionBtn" onclick="saveWhitelist()">💾 Save Selection</button>
         </div>
       </div>
 
@@ -454,6 +460,27 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
+  <!-- USERS PAGE -->
+  <div id="pageUsers" class="content" style="display:none;">
+    <div class="logins-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">User Management</div>
+          <div class="section-sub">Manage users and their account access</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">＋ Add User</button>
+        </div>
+      </div>
+      <div class="logins-layout">
+        <div class="logins-list" id="usersList"><div class="panel-loading">Loading...</div></div>
+        <div class="mcc-panel" id="userDetailPanel">
+          <div class="panel-empty">← Select a user to manage their account access</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer>Auto-refreshes every 5 minutes · Ads Spend Monitor</footer>
 </main>
 
@@ -480,6 +507,42 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
   </div>
 </div>
 
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal">
+    <h3>Add User</h3>
+    <div class="sub">Create a new account for this app</div>
+    <label>Username</label>
+    <input type="text" id="newUsername" placeholder="e.g. john"/>
+    <label>Password</label>
+    <input type="password" id="newPassword" placeholder="Minimum 6 characters"/>
+    <label style="margin-top:16px;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;">
+      <input type="checkbox" id="newIsAdmin" style="width:15px;height:15px;accent-color:var(--blue);margin:0;">
+      <span style="font-size:12px;font-weight:500;color:var(--text);">Admin — can manage users, devices, and all accounts</span>
+    </label>
+    <div id="addUserError" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddUserModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div class="modal-overlay" id="resetPwModal">
+  <div class="modal">
+    <h3>Reset Password</h3>
+    <div class="sub" id="resetPwSub"></div>
+    <label>New Password</label>
+    <input type="password" id="resetPwInput" placeholder="New password"/>
+    <div id="resetPwError" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeResetPwModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitResetPassword()">Save Password</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Auth gate ──
 async function checkAuth() {
@@ -494,39 +557,43 @@ async function checkAuth() {
 function showAuthOverlay() {
   const el = document.getElementById('authOverlay');
   el.style.display = 'flex';
-  setTimeout(() => document.getElementById('authPasswordInput').focus(), 50);
+  setTimeout(() => document.getElementById('authUsernameInput').focus(), 50);
 }
 
 function hideAuthOverlay() {
   document.getElementById('authOverlay').style.display = 'none';
 }
 
-async function submitPassword() {
-  const input = document.getElementById('authPasswordInput');
-  const errEl = document.getElementById('authError');
-  const pw = input.value;
-  if (!pw) { errEl.textContent = 'Please enter a password.'; return; }
+async function submitLogin() {
+  const unInput = document.getElementById('authUsernameInput');
+  const pwInput = document.getElementById('authPasswordInput');
+  const errEl   = document.getElementById('authError');
+  const username = unInput.value.trim();
+  const password = pwInput.value;
+  if (!username || !password) { errEl.textContent = 'Please enter username and password.'; return; }
   errEl.textContent = '';
   try {
-    const res = await fetch('/auth/password', {
+    const res = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw })
+      body: JSON.stringify({ username, password })
     });
     const data = await res.json();
     if (data.success) {
-      input.value = '';
+      pwInput.value = '';
       hideAuthOverlay();
       initApp();
     } else {
-      errEl.textContent = data.error || 'Incorrect password.';
-      input.select();
+      errEl.textContent = data.error || 'Invalid credentials.';
+      pwInput.select();
     }
   } catch(e) { errEl.textContent = 'Network error. Try again.'; }
 }
 
 // ── State ──
 let isAdmin = false;
+let currentUsername = '';
+let myAccountIds = null; // null = admin (all accounts), Set = allowed account_ids for regular user
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
 let whitelist = new Set(), whitelistData = {};
@@ -557,8 +624,23 @@ async function initApp() {
   try {
     const me = await api('/api/auth/me');
     isAdmin = !!me.isAdmin;
-  } catch(e) { isAdmin = false; }
+    currentUsername = me.username || '';
+  } catch(e) { isAdmin = false; currentUsername = ''; }
+
+  const unEl = document.getElementById('topbarUsername');
+  if (unEl) unEl.textContent = currentUsername;
+
   document.getElementById('devicesNavItem').style.display = isAdmin ? '' : 'none';
+  document.getElementById('usersNavItem').style.display   = isAdmin ? '' : 'none';
+
+  const saveBtn = document.getElementById('saveSelectionBtn');
+  if (saveBtn) saveBtn.style.display = isAdmin ? '' : 'none';
+
+  // Load allowed accounts for non-admin filtering
+  try {
+    const res = await api('/api/me/accounts');
+    myAccountIds = isAdmin ? null : new Set(res.accountIds || []);
+  } catch(e) { myAccountIds = isAdmin ? null : new Set(); }
 
   window.addEventListener('message', e => {
     if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
@@ -591,14 +673,17 @@ async function loadWhitelistFromDB() {
 // ── Navigation ──
 function showPage(page) {
   if (page === 'performance') initPerformanceTab();
-  ['dashboard','performance','accounts','devices'].forEach(p => {
+  ['dashboard','performance','accounts','devices','users'].forEach(p => {
     document.getElementById('page' + cap(p)).style.display = p === page ? '' : 'none';
   });
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','performance','accounts','devices'][i] === page));
-  const titles = {dashboard:'Performance Alerts',performance:'Performance',accounts:'Manage Logins',devices:'Device Manager'};
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  const titles = {dashboard:'Performance Alerts',performance:'Performance',accounts:'Manage Logins',devices:'Device Manager',users:'User Management'};
   document.getElementById('pageTitle').textContent = titles[page] || '';
   if (page === 'accounts') renderLoginsList();
   if (page === 'devices')  loadDevices();
+  if (page === 'users')    loadUsers();
 }
 
 // ── Logins ──
@@ -615,6 +700,17 @@ async function loadLogins() {
 
 function renderLoginsList() {
   const el = document.getElementById('loginsList');
+  if (!isAdmin) {
+    // Non-admin: show read-only info in left pane and their assigned accounts on right
+    const count = myAccountIds ? myAccountIds.size : 0;
+    el.innerHTML = `<div style="padding:16px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Your Access</div>
+      <div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:4px;">${esc(currentUsername)}</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.7;">${count} account${count!==1?'s':''} assigned<br>Contact your admin to change access.</div>
+    </div>`;
+    renderReadonlyAccountsTree();
+    return;
+  }
   if (!logins.length) {
     el.innerHTML = `<div class="panel-empty" style="padding:20px;font-size:12px;">No accounts yet.</div>
       <button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
@@ -632,6 +728,51 @@ function renderLoginsList() {
     </div>`).join('') +
     `<button class="add-login-btn" onclick="addLogin()">＋ Connect Google Account</button>`;
   if (!activeLogin && logins.length > 0) selectLogin(logins[0].email);
+}
+
+function renderReadonlyAccountsTree() {
+  const tree = document.getElementById('mccTree');
+  if (!myAccountIds || myAccountIds.size === 0) {
+    tree.innerHTML = '<div class="panel-empty">No accounts assigned to your account yet.</div>';
+    return;
+  }
+  // Build MCC groups from whitelistData filtered to assigned accounts
+  const groups = {};
+  Object.values(whitelistData).forEach(a => {
+    const id = (a.accountId || '').replace(/-/g,'');
+    if (!myAccountIds.has(id)) return;
+    const mccId = (a.mccId||'unknown').replace(/-/g,'');
+    const mccName = a.mccName || ('MCC ' + mccId);
+    if (!groups[mccId]) groups[mccId] = { mccId, mccName, accounts: [] };
+    if (!groups[mccId].accounts.find(x => x.accountId === id))
+      groups[mccId].accounts.push({ accountId: id, accountName: a.accountName, currency: a.currency||'' });
+  });
+  const list = Object.values(groups);
+  if (!list.length) {
+    tree.innerHTML = '<div class="panel-empty">Your assigned accounts are loading...</div>';
+    return;
+  }
+  tree.innerHTML = list.map(g => `
+    <div class="mcc-group">
+      <div class="mcc-header" style="cursor:default;">
+        <span class="mcc-icon">📁</span>
+        <span class="mcc-name">${esc(g.mccName)}</span>
+        <span class="mcc-id">${g.mccId}</span>
+        <span class="mcc-count">${g.accounts.length}</span>
+      </div>
+      <div class="mcc-accounts">
+        ${g.accounts.map(a => `
+          <div class="acc-row selected" style="cursor:default;">
+            <div class="acc-check"></div>
+            <span class="acc-icon">📢</span>
+            <div class="acc-info">
+              <div class="acc-name-t">${esc(a.accountName)}</div>
+              <div class="acc-id-t">${a.accountId}</div>
+            </div>
+            <span class="acc-curr">${a.currency}</span>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
 }
 
 async function selectLogin(email) {
@@ -1130,10 +1271,12 @@ const COL_DEFS = [
 // Build MCC structure from discovered accounts
 function buildPerfMccs() {
   perfMccs = {};
+  const allowed = id => myAccountIds === null || myAccountIds.has((id||'').replace(/-/g,''));
 
   // Source 1: discoveredAccounts (has mccName from API)
   Object.keys(discoveredAccounts).forEach(email => {
     (discoveredAccounts[email] || []).forEach(a => {
+      if (!allowed(a.accountId)) return;
       const mccId = (a.mccId || 'unknown').replace(/-/g,'');
       const mccName = a.mccName || null;
       if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: mccName || ('MCC ' + mccId), accounts: [] };
@@ -1144,8 +1287,9 @@ function buildPerfMccs() {
     });
   });
 
-  // Source 2: allSpend (already loaded on dashboard, has accountName, mccId, loginEmail)
+  // Source 2: allSpend
   allSpend.forEach(a => {
+    if (!allowed(a.accountId)) return;
     const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
     if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
     const clean = (a.accountId||'').replace(/-/g,'');
@@ -1153,8 +1297,9 @@ function buildPerfMccs() {
       perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
   });
 
-  // Source 3: whitelistData (fallback for any remaining accounts)
+  // Source 3: whitelistData (fallback)
   Object.values(whitelistData).forEach(a => {
+    if (!allowed(a.accountId)) return;
     const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
     if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
     const clean = (a.accountId||'').replace(/-/g,'');
@@ -1682,11 +1827,262 @@ async function signOutCurrent() {
 async function signOutAll() {
   if (!confirm('Sign out ALL devices including this one? Everyone will need to log in again.')) return;
   try {
-    await api('/api/sessions', 'DELETE'); // revoke all other sessions in DB
-    await api('/auth/logout', 'POST');    // clear current session + cookie
+    await api('/api/sessions', 'DELETE');
+    await api('/auth/logout', 'POST');
   } catch(e) {}
   location.reload();
 }
+
+// ══════════════════════════════════════════════
+// USER MANAGEMENT
+// ══════════════════════════════════════════════
+
+let usersData        = [];
+let selectedUserId   = null;
+let userAssignments  = new Set(); // account_ids assigned to currently selected user
+let userCollapsedMccs = new Set();
+let resetPwTargetId  = null;
+
+async function loadUsers() {
+  const el = document.getElementById('usersList');
+  el.innerHTML = '<div class="panel-loading" style="padding:30px;text-align:center;"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
+  try {
+    const res = await api('/api/users');
+    usersData = res.users || [];
+    renderUsersList();
+  } catch(e) {
+    el.innerHTML = `<div style="padding:24px;font-size:12px;color:var(--red);">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function renderUsersList() {
+  const el = document.getElementById('usersList');
+  if (!usersData.length) {
+    el.innerHTML = '<div class="panel-empty" style="padding:24px;font-size:12px;">No users found.</div>';
+    return;
+  }
+  el.innerHTML = usersData.map(u => {
+    const adminBadge = u.is_admin
+      ? `<span style="background:#7c3aed;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;">ADMIN</span>`
+      : '';
+    const isSelf = u.username === currentUsername;
+    return `<div class="login-item ${selectedUserId===u.id?'active':''}" onclick="selectUser('${u.id}')">
+      <div class="login-avatar" style="background:${u.is_admin?'#7c3aed':'var(--blue-l)'};border-color:${u.is_admin?'#a78bfa':'var(--blue-b)'};color:${u.is_admin?'#fff':'var(--blue)'};">
+        ${u.username[0].toUpperCase()}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="login-email">${esc(u.username)}${adminBadge}${isSelf?'<span style="font-size:9px;color:var(--text3);margin-left:4px;">(you)</span>':''}</div>
+        <div class="login-count">${u.accountCount} account${u.accountCount!==1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectUser(userId) {
+  selectedUserId = userId;
+  renderUsersList();
+  const panel = document.getElementById('userDetailPanel');
+  panel.innerHTML = '<div class="panel-loading" style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
+  try {
+    const res = await api('/api/users/' + userId + '/accounts');
+    userAssignments = new Set(res.accountIds || []);
+    userCollapsedMccs.clear();
+    renderUserDetail();
+  } catch(e) {
+    panel.innerHTML = `<div style="padding:24px;font-size:12px;color:var(--red);">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function renderUserDetail() {
+  const user = usersData.find(u => u.id === selectedUserId);
+  if (!user) return;
+  const isSelf = user.username === currentUsername;
+  const adminBadge = user.is_admin
+    ? `<span style="background:#7c3aed;color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:8px;margin-left:6px;vertical-align:middle;">ADMIN</span>`
+    : '';
+
+  const panel = document.getElementById('userDetailPanel');
+  panel.innerHTML = `
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:14px;font-weight:700;">${esc(user.username)}${adminBadge}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${userAssignments.size} account${userAssignments.size!==1?'s':''} assigned</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openResetPwModal('${user.id}','${esc(user.username)}')">🔑 Reset Password</button>
+        ${!isSelf ? `<button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#fca5a5;" onclick="deleteUser('${user.id}','${esc(user.username)}')">🗑 Delete</button>` : ''}
+      </div>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Account Access</span>
+      <button class="btn btn-primary btn-sm" onclick="saveUserAccounts('${user.id}')">💾 Save Assignments</button>
+    </div>
+    <div id="userAccountsTree" style="overflow-y:auto;max-height:480px;"></div>`;
+  renderUserAccountsTree();
+}
+
+function buildUserMccGroups() {
+  const groups = {};
+  Object.values(whitelistData).forEach(a => {
+    const mccId   = (a.mccId||'unknown').replace(/-/g,'');
+    const mccName = a.mccName || ('MCC ' + mccId);
+    if (!groups[mccId]) groups[mccId] = { mccId, mccName, accounts: [] };
+    const clean = (a.accountId||'').replace(/-/g,'');
+    if (!groups[mccId].accounts.find(x => x.accountId === clean))
+      groups[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
+  });
+  return Object.values(groups);
+}
+
+function renderUserAccountsTree() {
+  const tree = document.getElementById('userAccountsTree');
+  if (!tree) return;
+  const groups = buildUserMccGroups();
+  if (!groups.length) {
+    tree.innerHTML = '<div class="panel-empty" style="padding:32px;">No accounts in whitelist.<br>Add accounts in Manage Logins first.</div>';
+    return;
+  }
+  tree.innerHTML = groups.map(g => {
+    const allSel  = g.accounts.every(a => userAssignments.has(a.accountId));
+    const someSel = g.accounts.some(a => userAssignments.has(a.accountId));
+    const chkCls  = allSel ? 'checked' : someSel ? 'partial' : '';
+    const selCount = g.accounts.filter(a => userAssignments.has(a.accountId)).length;
+    const collapsed = userCollapsedMccs.has(g.mccId);
+    const rows = g.accounts.map(a => {
+      const sel = userAssignments.has(a.accountId);
+      return `<div class="acc-row ${sel?'selected':''}" onclick="toggleUserAccount('${a.accountId}')">
+        <div class="acc-check"></div>
+        <span class="acc-icon">📢</span>
+        <div class="acc-info">
+          <div class="acc-name-t">${esc(a.accountName)}</div>
+          <div class="acc-id-t">${a.accountId}</div>
+        </div>
+        <span class="acc-curr">${a.currency}</span>
+      </div>`;
+    }).join('');
+    return `<div class="mcc-group">
+      <div class="mcc-header" onclick="toggleUserMccExpand('${g.mccId}')">
+        <div class="mcc-checkbox ${chkCls}" onclick="toggleUserMccSelect(event,'${g.mccId}')"></div>
+        <span class="mcc-chevron ${collapsed?'':'open'}">▶</span>
+        <span class="mcc-icon">📁</span>
+        <span class="mcc-name">${esc(g.mccName)}</span>
+        <span class="mcc-id">${g.mccId}</span>
+        <span class="mcc-count">${selCount}/${g.accounts.length}</span>
+      </div>
+      <div class="mcc-accounts ${collapsed?'collapsed':''}">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleUserAccount(accountId) {
+  if (userAssignments.has(accountId)) userAssignments.delete(accountId);
+  else userAssignments.add(accountId);
+  renderUserAccountsTree();
+  // Update count in header
+  const user = usersData.find(u => u.id === selectedUserId);
+  if (user) {
+    const countEl = document.querySelector('#userDetailPanel div[style*="account"]');
+    if (countEl) countEl.textContent = userAssignments.size + ' account' + (userAssignments.size!==1?'s':'') + ' assigned';
+  }
+}
+
+function toggleUserMccExpand(mccId) {
+  if (userCollapsedMccs.has(mccId)) userCollapsedMccs.delete(mccId);
+  else userCollapsedMccs.add(mccId);
+  renderUserAccountsTree();
+}
+
+function toggleUserMccSelect(e, mccId) {
+  e.stopPropagation();
+  const groups = buildUserMccGroups();
+  const g = groups.find(x => x.mccId === mccId);
+  if (!g) return;
+  const allSel = g.accounts.every(a => userAssignments.has(a.accountId));
+  g.accounts.forEach(a => {
+    if (allSel) userAssignments.delete(a.accountId);
+    else userAssignments.add(a.accountId);
+  });
+  renderUserAccountsTree();
+}
+
+async function saveUserAccounts(userId) {
+  try {
+    await api('/api/users/' + userId + '/accounts', 'PUT', { accountIds: [...userAssignments] });
+    const user = usersData.find(u => u.id === userId);
+    if (user) user.accountCount = userAssignments.size;
+    renderUsersList();
+    showToast('✅ Account assignments saved');
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function deleteUser(userId, username) {
+  if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+  try {
+    await api('/api/users/' + userId, 'DELETE');
+    usersData = usersData.filter(u => u.id !== userId);
+    selectedUserId = null;
+    renderUsersList();
+    document.getElementById('userDetailPanel').innerHTML =
+      '<div class="panel-empty">← Select a user to manage their account access</div>';
+    showToast('✅ User deleted');
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+// ── Add User Modal ──
+function openAddUserModal() {
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('newIsAdmin').checked = false;
+  document.getElementById('addUserError').textContent = '';
+  document.getElementById('addUserModal').classList.add('open');
+  setTimeout(() => document.getElementById('newUsername').focus(), 50);
+}
+function closeAddUserModal() { document.getElementById('addUserModal').classList.remove('open'); }
+
+async function submitAddUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const isAdminFlag = document.getElementById('newIsAdmin').checked;
+  const errEl = document.getElementById('addUserError');
+  if (!username || !password) { errEl.textContent = 'Username and password are required.'; return; }
+  if (password.length < 6)    { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  errEl.textContent = '';
+  try {
+    const res = await api('/api/users', 'POST', { username, password, isAdmin: isAdminFlag });
+    usersData.push({ ...res.user, accountCount: 0 });
+    renderUsersList();
+    closeAddUserModal();
+    showToast('✅ User "' + username + '" created');
+    selectUser(res.user.id);
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+document.getElementById('addUserModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAddUserModal(); });
+
+// ── Reset Password Modal ──
+function openResetPwModal(userId, username) {
+  resetPwTargetId = userId;
+  document.getElementById('resetPwSub').textContent = 'Set a new password for ' + username;
+  document.getElementById('resetPwInput').value = '';
+  document.getElementById('resetPwError').textContent = '';
+  document.getElementById('resetPwModal').classList.add('open');
+  setTimeout(() => document.getElementById('resetPwInput').focus(), 50);
+}
+function closeResetPwModal() { document.getElementById('resetPwModal').classList.remove('open'); }
+
+async function submitResetPassword() {
+  const pw = document.getElementById('resetPwInput').value;
+  const errEl = document.getElementById('resetPwError');
+  if (!pw || pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  errEl.textContent = '';
+  try {
+    await api('/api/users/' + resetPwTargetId + '/password', 'PATCH', { password: pw });
+    closeResetPwModal();
+    showToast('✅ Password updated');
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+document.getElementById('resetPwModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeResetPwModal(); });
 
 </script>
 </body>
