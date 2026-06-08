@@ -279,7 +279,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
     <button class="nav-item" onclick="showPage('performance')"><span class="nav-icon">📈</span> Performance</button>
     <button class="nav-item" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
-    <button class="nav-item" onclick="showPage('devices')"><span class="nav-icon">🛡️</span> Devices</button>
+    <button class="nav-item" id="devicesNavItem" style="display:none;" onclick="showPage('devices')"><span class="nav-icon">🛡️</span> Devices</button>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-stats">Logins: <span id="sbLogins">0</span> &nbsp;·&nbsp; Accounts: <span id="sbAccounts">0</span></div>
@@ -524,6 +524,7 @@ async function submitPassword() {
 }
 
 // ── State ──
+let isAdmin = false;
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
 let whitelist = new Set(), whitelistData = {};
@@ -546,7 +547,13 @@ async function api(path, method='GET', body=null) {
 }
 
 // ── Init ──
-function initApp() {
+async function initApp() {
+  try {
+    const me = await api('/api/auth/me');
+    isAdmin = !!me.isAdmin;
+  } catch(e) { isAdmin = false; }
+  document.getElementById('devicesNavItem').style.display = isAdmin ? '' : 'none';
+
   window.addEventListener('message', e => {
     if (e.data?.type === 'AUTH_SUCCESS') { showToast('✅ ' + e.data.email + ' connected!'); loadLogins(); }
     if (e.data?.type === 'AUTH_ERROR')   { showToast('❌ ' + e.data.error); }

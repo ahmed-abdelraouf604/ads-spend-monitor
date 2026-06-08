@@ -110,15 +110,26 @@ async function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
+function requireAdmin(req, res, next) {
+  if (req.session.isAdmin) return next();
+  res.status(403).json({ error: 'Admin access required' });
+}
+
 app.post('/auth/password', async (req, res) => {
   const { password } = req.body;
-  const correct = process.env.APP_PASSWORD;
-  if (!correct) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
-  if (password !== correct) return res.status(401).json({ error: 'Incorrect password' });
+  const appPw   = process.env.APP_PASSWORD;
+  const adminPw = process.env.ADMIN_PASSWORD;
+  if (!appPw) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
+
+  const isAdmin = adminPw && password === adminPw;
+  const isUser  = password === appPw;
+  if (!isAdmin && !isUser) return res.status(401).json({ error: 'Incorrect password' });
+
   req.session.authenticated = true;
+  req.session.isAdmin       = isAdmin;
   await upsertDbSession(req);
   res.cookie(REMEMBER_COOKIE, makeAuthToken(), { httpOnly: true, maxAge: REMEMBER_MAX_AGE, sameSite: 'lax' });
-  res.json({ success: true });
+  res.json({ success: true, isAdmin });
 });
 
 app.post('/auth/logout', async (req, res) => {
@@ -141,6 +152,10 @@ app.get('/auth/check', async (req, res) => {
     }
   } catch(e) {}
   res.json({ authenticated: false });
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ isAdmin: !!req.session.isAdmin });
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -202,7 +217,7 @@ app.use('/api', (req, res, next) => {
 // ─────────────────────────────────────────────
 // DEVICE MANAGER  — session CRUD
 // ─────────────────────────────────────────────
-app.get('/api/sessions', async (req, res) => {
+app.get('/api/sessions', requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from('sessions').select('*')
     .order('last_seen_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
@@ -219,7 +234,7 @@ app.get('/api/sessions', async (req, res) => {
   });
 });
 
-app.delete('/api/sessions', async (req, res) => {
+app.delete('/api/sessions', requireAdmin, async (req, res) => {
   const current = req.sessionID;
   if (!current) return res.status(400).json({ error: 'Cannot identify current session' });
   const { error } = await supabase.from('sessions').delete().neq('session_id', current);
@@ -228,7 +243,7 @@ app.delete('/api/sessions', async (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/sessions/:id', async (req, res) => {
+app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
   const { data: sess } = await supabase.from('sessions').select('session_id')
     .eq('id', req.params.id).maybeSingle();
   const { error } = await supabase.from('sessions').delete().eq('id', req.params.id);
