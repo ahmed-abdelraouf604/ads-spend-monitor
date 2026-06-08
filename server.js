@@ -365,8 +365,9 @@ app.post('/api/performance', async (req, res) => {
     const whitelistMap = {};
     whitelist.forEach(w => { whitelistMap[w.account_id] = w; });
 
-    // Also build a map of loginEmail → authClient (lazy)
-    const authClients = {};
+    // Also build maps of loginEmail → authClient and → accessible customer IDs (lazy)
+    const authClients        = {};
+    const accessibleIdsCache = {};
 
     for (const cleanId of cleanIds) {
       const acc = whitelistMap[cleanId];
@@ -382,11 +383,14 @@ app.post('/api/performance', async (req, res) => {
         continue;
       }
 
-      // Get or create authClient for this login
+      // Get or create authClient + accessible customers for this login
       if (!authClients[acc.login_email]) {
         const login = logins.find(l => l.email === acc.login_email);
         if (login) {
-          try { authClients[acc.login_email] = await getAuthClient(login); }
+          try {
+            authClients[acc.login_email]        = await getAuthClient(login);
+            accessibleIdsCache[acc.login_email] = await listAccessibleCustomers(authClients[acc.login_email]);
+          }
           catch(e) { authClients[acc.login_email] = null; }
         }
       }
@@ -404,10 +408,11 @@ app.post('/api/performance', async (req, res) => {
       }
 
       try {
-        const metrics = await getAccountMetrics(authClient, acc.account_id, acc.mcc_id, dateClause);
+        const accessibleIds = accessibleIdsCache[acc.login_email] || [];
+        const metrics = await getAccountMetrics(authClient, acc.account_id, acc.mcc_id, dateClause, accessibleIds);
         results.push({
           accountId:   formatId(acc.account_id),
-          accountName: acc.account_name,
+          accountName: metrics.descriptiveName || acc.account_name || formatId(acc.account_id),
           mccId:       formatId(acc.mcc_id),
           loginEmail:  acc.login_email,
           currency:    metrics.currency || acc.currency || '',
@@ -455,16 +460,16 @@ function buildDateClause(dateRange) {
   return 'DURING LAST_30_DAYS';
 }
 
-async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
+async function getAccountMetrics(authClient, accountId, mccId, dateClause, accessibleIds = []) {
   const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 
-  // Clean IDs — remove dashes
   const cleanAccountId = String(accountId).replace(/-/g, '');
   const cleanMccId     = String(mccId).replace(/-/g, '');
 
   const query = `
     SELECT
+      customer.descriptive_name,
       customer.currency_code,
       metrics.impressions,
       metrics.clicks,
@@ -478,63 +483,80 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause) {
     WHERE segments.date ${dateClause}
   `;
 
-  // Try with MCC as login-customer-id first, then fall back to account itself
-  const loginIds = cleanMccId && cleanMccId !== cleanAccountId
-    ? [cleanMccId, cleanAccountId]
-    : [cleanAccountId];
-
-  let res, data;
-  for (const loginId of loginIds) {
+  async function tryFetch(loginId) {
     const headers = {
       'Authorization': 'Bearer ' + token,
       'developer-token': devToken,
       'login-customer-id': loginId,
       'Content-Type': 'application/json'
     };
-    res  = await fetch(`${ADS_BASE}/customers/${cleanAccountId}/googleAds:search`, {
+    const r = await fetch(`${ADS_BASE}/customers/${cleanAccountId}/googleAds:search`, {
       method: 'POST', headers, body: JSON.stringify({ query })
     });
-    data = await res.json();
-    if (res.ok) break; // success — stop trying
-    console.error(`Metrics API error for ${cleanAccountId} (login: ${loginId}):`, JSON.stringify(data).substring(0, 300));
+    const d = await r.json();
+    return { ok: r.ok, data: d };
   }
 
-  if (!res.ok) {
-    const errMsg = data?.error?.message || JSON.stringify(data).substring(0, 100);
-    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true, errorMsg:errMsg };
-  }
-  if (!data.results || !data.results.length) {
-    // Account has no data for this period — still return zeros (not an error)
-    return { currency:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:false };
+  let result = null;
+
+  // 1. Try the stored MCC first
+  if (cleanMccId && cleanMccId !== cleanAccountId) {
+    const { ok, data } = await tryFetch(cleanMccId);
+    if (ok) result = data;
+    else console.error(`Metrics error for ${cleanAccountId} (login: ${cleanMccId}):`, JSON.stringify(data).substring(0, 200));
   }
 
-  // Aggregate across all rows (date segments)
+  // 2. Stored MCC failed — try every accessible customer ID as login-customer-id
+  if (!result) {
+    for (const loginId of accessibleIds) {
+      if (loginId === cleanMccId || loginId === cleanAccountId) continue;
+      const { ok, data } = await tryFetch(loginId);
+      if (ok) { result = data; break; }
+    }
+  }
+
+  // 3. Last resort: use the account itself as login-customer-id
+  if (!result) {
+    const { ok, data } = await tryFetch(cleanAccountId);
+    if (ok) result = data;
+    else {
+      const errMsg = data?.error?.message || JSON.stringify(data).substring(0, 100);
+      return { currency:'', descriptiveName:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true, errorMsg:errMsg };
+    }
+  }
+
+  if (!result.results || !result.results.length) {
+    return { currency:'', descriptiveName:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:false };
+  }
+
   let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
-  let currency = '';
-  data.results.forEach(r => {
-    impressions += parseInt(r.metrics?.impressions || 0);
-    clicks      += parseInt(r.metrics?.clicks || 0);
-    costMicros  += parseInt(r.metrics?.costMicros || 0);
-    conversions += parseFloat(r.metrics?.conversions || 0);
-    if (!currency) currency = r.customer?.currencyCode || '';
+  let currency = '', descriptiveName = '';
+  result.results.forEach(r => {
+    impressions    += parseInt(r.metrics?.impressions || 0);
+    clicks         += parseInt(r.metrics?.clicks || 0);
+    costMicros     += parseInt(r.metrics?.costMicros || 0);
+    conversions    += parseFloat(r.metrics?.conversions || 0);
+    if (!currency)        currency        = r.customer?.currencyCode    || '';
+    if (!descriptiveName) descriptiveName = r.customer?.descriptiveName || '';
   });
 
-  const cost      = Math.round((costMicros / 1e6) * 100) / 100;
-  const ctr       = clicks > 0 && impressions > 0 ? (clicks / impressions) * 100 : 0;
-  const avgCpc    = clicks > 0 ? (costMicros / 1e6) / clicks : 0;
+  const cost        = Math.round((costMicros / 1e6) * 100) / 100;
+  const ctr         = impressions > 0 ? (clicks / impressions) * 100 : 0;
+  const avgCpc      = clicks > 0 ? (costMicros / 1e6) / clicks : 0;
   const costPerConv = conversions > 0 ? cost / conversions : 0;
-  const convRate  = clicks > 0 ? (conversions / clicks) * 100 : 0;
+  const convRate    = clicks > 0 ? (conversions / clicks) * 100 : 0;
 
   return {
     currency,
+    descriptiveName,
     impressions,
     clicks,
-    ctr:        Math.round(ctr * 100) / 100,
-    avgCpc:     Math.round(avgCpc * 100) / 100,
+    ctr:         Math.round(ctr * 100) / 100,
+    avgCpc:      Math.round(avgCpc * 100) / 100,
     cost,
     conversions: Math.round(conversions * 100) / 100,
     costPerConv: Math.round(costPerConv * 100) / 100,
-    convRate:   Math.round(convRate * 100) / 100
+    convRate:    Math.round(convRate * 100) / 100
   };
 }
 
