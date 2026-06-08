@@ -782,8 +782,9 @@ async function selectLogin(email) {
   tree.innerHTML = '<div class="panel-loading"><div class="spinner" style="margin:0 auto 10px"></div>Loading MCC structure...</div>';
 
   try {
-    if (!discoveredAccounts[email]) {
+    if (!discoveredAccounts[email] || discoveredAccounts[email].length === 0) {
       const res = await api('/api/accounts');
+      // Reset only entries that haven't been populated yet
       logins.forEach(l => { if (!discoveredAccounts[l.email]) discoveredAccounts[l.email] = []; });
       (res.accounts||[]).forEach(a => {
         if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
