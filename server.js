@@ -372,14 +372,42 @@ app.post('/api/performance', async (req, res) => {
     for (const cleanId of cleanIds) {
       const acc = whitelistMap[cleanId];
       if (!acc) {
-        // Account not in whitelist — still show with zeros
-        results.push({
-          accountId: formatId(cleanId), accountName: cleanId,
-          mccId: '', loginEmail: '', currency: '',
-          impressions:0, clicks:0, ctr:0, avgCpc:0,
-          cost:0, conversions:0, costPerConv:0, convRate:0,
-          hasError:true, errorMsg:'Not found in whitelist'
-        });
+        // Account not in whitelist — try all available logins to fetch metrics
+        let found = false;
+        for (const login of logins) {
+          try {
+            if (!authClients[login.email]) {
+              authClients[login.email]        = await getAuthClient(login);
+              accessibleIdsCache[login.email] = await listAccessibleCustomers(authClients[login.email]);
+            }
+            const authClient = authClients[login.email];
+            if (!authClient) continue;
+            const accessibleIds = accessibleIdsCache[login.email] || [];
+            const metrics = await getAccountMetrics(authClient, cleanId, '', dateClause, accessibleIds);
+            if (!metrics.hasError) {
+              results.push({
+                accountId:   formatId(cleanId),
+                accountName: metrics.descriptiveName || formatId(cleanId),
+                mccId: '', loginEmail: login.email, currency: metrics.currency || '',
+                impressions: metrics.impressions, clicks: metrics.clicks,
+                ctr: metrics.ctr, avgCpc: metrics.avgCpc, cost: metrics.cost,
+                conversions: metrics.conversions, costPerConv: metrics.costPerConv,
+                convRate: metrics.convRate, hasError: false
+              });
+              found = true;
+              break;
+            }
+          } catch(e) { /* try next login */ }
+        }
+        if (!found) {
+          results.push({
+            accountId: formatId(cleanId), accountName: formatId(cleanId),
+            mccId: '', loginEmail: '', currency: '',
+            impressions:0, clicks:0, ctr:0, avgCpc:0,
+            cost:0, conversions:0, costPerConv:0, convRate:0,
+            hasError:true, errorMsg:'Account not accessible by any connected login'
+          });
+        }
         continue;
       }
 
