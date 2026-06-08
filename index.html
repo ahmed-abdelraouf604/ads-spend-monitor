@@ -279,6 +279,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <button class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</button>
     <button class="nav-item" onclick="showPage('performance')"><span class="nav-icon">📈</span> Performance</button>
     <button class="nav-item" onclick="showPage('accounts')"><span class="nav-icon">🔗</span> Manage Logins</button>
+    <button class="nav-item" onclick="showPage('devices')"><span class="nav-icon">🛡️</span> Devices</button>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-stats">Logins: <span id="sbLogins">0</span> &nbsp;·&nbsp; Accounts: <span id="sbAccounts">0</span></div>
@@ -435,6 +436,22 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     </div>
   </div>
 
+  <!-- DEVICES PAGE -->
+  <div id="pageDevices" class="content" style="display:none;">
+    <div class="logins-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Connected Devices</div>
+          <div class="section-sub">Devices currently logged in to Ads Monitor</div>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-ghost btn-sm" onclick="signOutAllOthers()" id="signOutAllBtn">Sign out all other devices</button>
+        </div>
+      </div>
+      <div id="devicesWrap"></div>
+    </div>
+  </div>
+
   <footer>Auto-refreshes every 5 minutes · Ads Spend Monitor</footer>
 </main>
 
@@ -561,13 +578,14 @@ async function loadWhitelistFromDB() {
 // ── Navigation ──
 function showPage(page) {
   if (page === 'performance') initPerformanceTab();
-  ['dashboard','performance','accounts'].forEach(p => {
+  ['dashboard','performance','accounts','devices'].forEach(p => {
     document.getElementById('page' + cap(p)).style.display = p === page ? '' : 'none';
   });
-  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','performance','accounts'][i] === page));
-  const titles = {dashboard:'Performance Alerts',performance:'Performance',accounts:'Manage Logins'};
+  document.querySelectorAll('.nav-item').forEach((el,i) => el.classList.toggle('active', ['dashboard','performance','accounts','devices'][i] === page));
+  const titles = {dashboard:'Performance Alerts',performance:'Performance',accounts:'Manage Logins',devices:'Device Manager'};
   document.getElementById('pageTitle').textContent = titles[page] || '';
   if (page === 'accounts') renderLoginsList();
+  if (page === 'devices')  loadDevices();
 }
 
 // ── Logins ──
@@ -1495,6 +1513,128 @@ const origShowPage = showPage;
 // Monkey-patch showPage to init perf tab
 const _origShowPage = showPage;
 window.showPageOrig = showPage;
+
+// ══════════════════════════════════════════════
+// DEVICE MANAGER
+// ══════════════════════════════════════════════
+
+let devicesData = [];
+
+function parseUserAgent(ua) {
+  if (!ua) return { label: 'Unknown Device', icon: '🖥️' };
+  const isMobile = /iPhone|Android.*Mobile|Windows Phone/.test(ua);
+  const isTablet  = /iPad|Android(?!.*Mobile)/.test(ua);
+  const icon = (isMobile || isTablet) ? '📱' : '🖥️';
+  let os = '';
+  if      (/Windows/.test(ua))       os = 'Windows';
+  else if (/Mac OS X/.test(ua))      os = 'macOS';
+  else if (/iPhone/.test(ua))        os = 'iOS';
+  else if (/iPad/.test(ua))          os = 'iPadOS';
+  else if (/Android/.test(ua))       os = 'Android';
+  else if (/Linux/.test(ua))         os = 'Linux';
+  let browser = '';
+  if      (/Edg\//.test(ua))              browser = 'Edge';
+  else if (/OPR\//.test(ua))              browser = 'Opera';
+  else if (/SamsungBrowser/.test(ua))     browser = 'Samsung Browser';
+  else if (/Chrome\//.test(ua))           browser = 'Chrome';
+  else if (/Firefox\//.test(ua))          browser = 'Firefox';
+  else if (/Safari\//.test(ua))           browser = 'Safari';
+  return { label: [browser, os].filter(Boolean).join(' on ') || 'Unknown Browser', icon };
+}
+
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60)    return 'Just now';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function fmtDateShort(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+async function loadDevices() {
+  const el = document.getElementById('devicesWrap');
+  el.innerHTML = '<div class="panel-loading" style="padding:40px;text-align:center;"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
+  try {
+    const res = await api('/api/sessions');
+    devicesData = res.sessions || [];
+    renderDevices();
+    // Show/hide "sign out all others" based on whether there are other sessions
+    const hasOthers = devicesData.some(s => !s.isCurrent);
+    document.getElementById('signOutAllBtn').style.display = hasOthers ? '' : 'none';
+  } catch(e) {
+    el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--red);font-size:13px;">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function renderDevices() {
+  const el = document.getElementById('devicesWrap');
+  if (!devicesData.length) {
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No active sessions found.</div>';
+    return;
+  }
+  const rows = devicesData.map(s => {
+    const { label, icon } = parseUserAgent(s.userAgent);
+    const badge = s.isCurrent
+      ? `<span style="background:var(--blue);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.3px;">THIS DEVICE</span>`
+      : '';
+    const action = s.isCurrent
+      ? `<button class="btn btn-ghost btn-sm" onclick="signOutSelf()">Sign out</button>`
+      : `<button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#fca5a5;" onclick="revokeDevice('${s.id}')">Sign out</button>`;
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:22px;line-height:1;">${icon}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;">${esc(label)}${badge}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${esc(s.ipAddress || 'Unknown IP')}</div>
+          </div>
+        </div>
+      </td>
+      <td style="font-size:12px;color:var(--text2);">${timeAgo(s.lastSeenAt)}</td>
+      <td style="font-size:12px;color:var(--text2);">${fmtDateShort(s.createdAt)}</td>
+      <td class="r">${action}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>Device</th>
+      <th>Last Active</th>
+      <th>Signed In</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function revokeDevice(id) {
+  if (!confirm('Sign out this device?')) return;
+  try {
+    await api('/api/sessions/' + id, 'DELETE');
+    showToast('✅ Device signed out');
+    loadDevices();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function signOutAllOthers() {
+  if (!confirm('Sign out all other devices?')) return;
+  try {
+    await api('/api/sessions', 'DELETE');
+    showToast('✅ All other devices signed out');
+    loadDevices();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+async function signOutSelf() {
+  if (!confirm('Sign out from this device?')) return;
+  try { await api('/auth/logout', 'POST'); } catch(e) {}
+  location.reload();
+}
 
 </script>
 </body>

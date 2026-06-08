@@ -29,10 +29,12 @@ app.use(session({
 }));
 
 // ============================================================
-// PASSWORD GATE
-// A signed cookie keeps the user logged in across server restarts.
-// Token = HMAC-SHA256(APP_PASSWORD, SESSION_SECRET) — changing
-// APP_PASSWORD automatically invalidates all existing cookies.
+// PASSWORD GATE  +  DEVICE / SESSION MANAGER
+//
+// Each login creates a row in the "sessions" Supabase table
+// keyed by the express session ID.  requireAuth checks the DB
+// (cached 60 s in memory) so revocation takes effect quickly
+// and server restarts don't log anyone out.
 // ============================================================
 const REMEMBER_COOKIE  = 'ads_auth';
 const REMEMBER_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 1 year
@@ -55,51 +57,90 @@ function parseCookies(req) {
 function isRemembered(req) {
   const cookies = parseCookies(req);
   const token   = cookies[REMEMBER_COOKIE];
-  return token && crypto.timingSafeEqual(
-    Buffer.from(token),
-    Buffer.from(makeAuthToken())
-  );
+  if (!token) return false;
+  const expected = makeAuthToken();
+  if (token.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
 }
 
-function requireAuth(req, res, next) {
-  if (req.session.authenticated) return next();
+function getClientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket?.remoteAddress || req.ip || '';
+}
+
+// In-memory caches — avoids a DB hit on every request
+const authCache     = {}; // sessionId → { valid: bool, ts: number }
+const lastSeenCache = {}; // sessionId → timestamp of last DB write
+const AUTH_CACHE_TTL  = 60_000;      // re-check DB every 60 s
+const LAST_SEEN_TTL   = 5 * 60_000; // write last_seen_at every 5 min
+
+async function isSessionValid(sessionId) {
+  if (!sessionId) return false;
+  const c = authCache[sessionId];
+  if (c && Date.now() - c.ts < AUTH_CACHE_TTL) return c.valid;
+  const { data } = await supabase.from('sessions').select('id')
+    .eq('session_id', sessionId).maybeSingle();
+  const valid = !!data;
+  authCache[sessionId] = { valid, ts: Date.now() };
+  return valid;
+}
+
+async function upsertDbSession(req) {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('sessions').upsert({
+    session_id:   req.sessionID,
+    ip_address:   getClientIp(req),
+    user_agent:   req.headers['user-agent'] || '',
+    created_at:   now,
+    last_seen_at: now
+  }, { onConflict: 'session_id' });
+  if (!error) authCache[req.sessionID] = { valid: true, ts: Date.now() };
+}
+
+async function requireAuth(req, res, next) {
   try {
-    if (isRemembered(req)) {
-      req.session.authenticated = true; // re-hydrate session from cookie
+    if (await isSessionValid(req.sessionID)) return next();
+    // Fallback: in-memory session or HMAC cookie (pre-device-manager logins)
+    if (req.session.authenticated || isRemembered(req)) {
+      req.session.authenticated = true;
+      upsertDbSession(req).catch(() => {}); // register/migrate — fire & forget
       return next();
     }
-  } catch(e) { /* length mismatch — treat as unauthenticated */ }
+  } catch(e) { console.error('requireAuth:', e.message); }
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-app.post('/auth/password', (req, res) => {
+app.post('/auth/password', async (req, res) => {
   const { password } = req.body;
   const correct = process.env.APP_PASSWORD;
   if (!correct) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
-  if (password === correct) {
-    req.session.authenticated = true;
-    // Set a long-lived signed cookie so this device stays logged in
-    res.cookie(REMEMBER_COOKIE, makeAuthToken(), {
-      httpOnly: true,
-      maxAge:   REMEMBER_MAX_AGE,
-      sameSite: 'lax'
-    });
-    return res.json({ success: true });
-  }
-  res.status(401).json({ error: 'Incorrect password' });
+  if (password !== correct) return res.status(401).json({ error: 'Incorrect password' });
+  req.session.authenticated = true;
+  await upsertDbSession(req);
+  res.cookie(REMEMBER_COOKIE, makeAuthToken(), { httpOnly: true, maxAge: REMEMBER_MAX_AGE, sameSite: 'lax' });
+  res.json({ success: true });
 });
 
-app.post('/auth/logout', (req, res) => {
+app.post('/auth/logout', async (req, res) => {
+  if (req.sessionID) {
+    await supabase.from('sessions').delete().eq('session_id', req.sessionID);
+    delete authCache[req.sessionID];
+    delete lastSeenCache[req.sessionID];
+  }
   res.clearCookie(REMEMBER_COOKIE);
   req.session.destroy(() => res.json({ success: true }));
 });
 
-app.get('/auth/check', (req, res) => {
-  let authenticated = !!req.session.authenticated;
-  if (!authenticated) {
-    try { authenticated = isRemembered(req); } catch(e) {}
-  }
-  res.json({ authenticated });
+app.get('/auth/check', async (req, res) => {
+  try {
+    if (await isSessionValid(req.sessionID)) return res.json({ authenticated: true });
+    if (req.session.authenticated || isRemembered(req)) {
+      req.session.authenticated = true;
+      await upsertDbSession(req); // await so next API call finds the row
+      return res.json({ authenticated: true });
+    }
+  } catch(e) {}
+  res.json({ authenticated: false });
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -144,6 +185,57 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Protect all /api/* routes
 app.use('/api', requireAuth);
+
+// Update last_seen_at on every authenticated API request (throttled to once per 5 min)
+app.use('/api', (req, res, next) => {
+  next();
+  const id = req.sessionID;
+  if (!id) return;
+  const now = Date.now();
+  if (!lastSeenCache[id] || now - lastSeenCache[id] > LAST_SEEN_TTL) {
+    lastSeenCache[id] = now;
+    supabase.from('sessions').update({ last_seen_at: new Date().toISOString() })
+      .eq('session_id', id).then(() => {}).catch(() => {});
+  }
+});
+
+// ─────────────────────────────────────────────
+// DEVICE MANAGER  — session CRUD
+// ─────────────────────────────────────────────
+app.get('/api/sessions', async (req, res) => {
+  const { data, error } = await supabase.from('sessions').select('*')
+    .order('last_seen_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  const current = req.sessionID;
+  res.json({
+    sessions: (data || []).map(s => ({
+      id:         s.id,
+      isCurrent:  s.session_id === current,
+      ipAddress:  s.ip_address,
+      userAgent:  s.user_agent,
+      createdAt:  s.created_at,
+      lastSeenAt: s.last_seen_at
+    }))
+  });
+});
+
+app.delete('/api/sessions', async (req, res) => {
+  const current = req.sessionID;
+  if (!current) return res.status(400).json({ error: 'Cannot identify current session' });
+  const { error } = await supabase.from('sessions').delete().neq('session_id', current);
+  if (error) return res.status(500).json({ error: error.message });
+  Object.keys(authCache).forEach(k => { if (k !== current) { delete authCache[k]; delete lastSeenCache[k]; } });
+  res.json({ success: true });
+});
+
+app.delete('/api/sessions/:id', async (req, res) => {
+  const { data: sess } = await supabase.from('sessions').select('session_id')
+    .eq('id', req.params.id).maybeSingle();
+  const { error } = await supabase.from('sessions').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  if (sess?.session_id) { delete authCache[sess.session_id]; delete lastSeenCache[sess.session_id]; }
+  res.json({ success: true });
+});
 
 // AUTH
 app.get('/auth/url', (req, res) => {
