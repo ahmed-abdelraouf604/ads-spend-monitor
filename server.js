@@ -27,6 +27,33 @@ app.use(session({
   cookie:            { secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
+// ============================================================
+// PASSWORD GATE
+// ============================================================
+function requireAuth(req, res, next) {
+  if (req.session.authenticated) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+app.post('/auth/password', (req, res) => {
+  const { password } = req.body;
+  const correct = process.env.APP_PASSWORD;
+  if (!correct) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
+  if (password === correct) {
+    req.session.authenticated = true;
+    return res.json({ success: true });
+  }
+  res.status(401).json({ error: 'Incorrect password' });
+});
+
+app.post('/auth/logout', (req, res) => {
+  req.session.destroy(() => res.json({ success: true }));
+});
+
+app.get('/auth/check', (req, res) => {
+  res.json({ authenticated: !!req.session.authenticated });
+});
+
 app.use(express.static(path.join(__dirname)));
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -66,6 +93,9 @@ function calcPacing(mtdSpend, monthlyBudget, rangePercent) {
 }
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// Protect all /api/* routes
+app.use('/api', requireAuth);
 
 // AUTH
 app.get('/auth/url', (req, res) => {
