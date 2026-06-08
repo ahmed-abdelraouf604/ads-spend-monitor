@@ -446,6 +446,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
         </div>
         <div class="section-actions">
           <button class="btn btn-ghost btn-sm" onclick="signOutAllOthers()" id="signOutAllBtn">Sign out all other devices</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:#fca5a5;" onclick="signOutAll()">Sign out all devices</button>
         </div>
       </div>
       <div id="devicesWrap"></div>
@@ -1640,6 +1641,15 @@ async function signOutAllOthers() {
 async function signOutSelf() {
   if (!confirm('Sign out from this device?')) return;
   try { await api('/auth/logout', 'POST'); } catch(e) {}
+  location.reload();
+}
+
+async function signOutAll() {
+  if (!confirm('Sign out ALL devices including this one? Everyone will need to log in again.')) return;
+  try {
+    await api('/api/sessions', 'DELETE'); // revoke all other sessions in DB
+    await api('/auth/logout', 'POST');    // clear current session + cookie
+  } catch(e) {}
   location.reload();
 }
 
