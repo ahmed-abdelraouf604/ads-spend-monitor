@@ -292,6 +292,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
     <div class="topbar-right">
       <div class="status-pill"><div class="dot" id="statusDot"></div><span id="statusText">—</span></div>
       <button class="btn btn-ghost" id="refreshBtn" onclick="loadSpend()" disabled>↺ Refresh</button>
+      <button class="btn btn-ghost" onclick="signOutCurrent()" title="Sign out" style="color:var(--text2);">⏏ Sign out</button>
     </div>
   </div>
 
@@ -1640,6 +1641,11 @@ async function signOutAllOthers() {
 
 async function signOutSelf() {
   if (!confirm('Sign out from this device?')) return;
+  try { await api('/auth/logout', 'POST'); } catch(e) {}
+  location.reload();
+}
+
+async function signOutCurrent() {
   try { await api('/auth/logout', 'POST'); } catch(e) {}
   location.reload();
 }
