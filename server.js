@@ -9,6 +9,7 @@ const cors             = require('cors');
 const { google }       = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 const path             = require('path');
+const crypto           = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -29,9 +30,45 @@ app.use(session({
 
 // ============================================================
 // PASSWORD GATE
+// A signed cookie keeps the user logged in across server restarts.
+// Token = HMAC-SHA256(APP_PASSWORD, SESSION_SECRET) — changing
+// APP_PASSWORD automatically invalidates all existing cookies.
 // ============================================================
+const REMEMBER_COOKIE  = 'ads_auth';
+const REMEMBER_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 1 year
+
+function makeAuthToken() {
+  const secret = process.env.SESSION_SECRET || 'change-this-secret';
+  const pw     = process.env.APP_PASSWORD   || '';
+  return crypto.createHmac('sha256', secret).update(pw).digest('hex');
+}
+
+function parseCookies(req) {
+  const out = {};
+  (req.headers.cookie || '').split(';').forEach(part => {
+    const [k, ...rest] = part.trim().split('=');
+    if (k) out[k.trim()] = decodeURIComponent(rest.join('=').trim());
+  });
+  return out;
+}
+
+function isRemembered(req) {
+  const cookies = parseCookies(req);
+  const token   = cookies[REMEMBER_COOKIE];
+  return token && crypto.timingSafeEqual(
+    Buffer.from(token),
+    Buffer.from(makeAuthToken())
+  );
+}
+
 function requireAuth(req, res, next) {
   if (req.session.authenticated) return next();
+  try {
+    if (isRemembered(req)) {
+      req.session.authenticated = true; // re-hydrate session from cookie
+      return next();
+    }
+  } catch(e) { /* length mismatch — treat as unauthenticated */ }
   res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -41,17 +78,28 @@ app.post('/auth/password', (req, res) => {
   if (!correct) return res.status(500).json({ error: 'APP_PASSWORD not set on server' });
   if (password === correct) {
     req.session.authenticated = true;
+    // Set a long-lived signed cookie so this device stays logged in
+    res.cookie(REMEMBER_COOKIE, makeAuthToken(), {
+      httpOnly: true,
+      maxAge:   REMEMBER_MAX_AGE,
+      sameSite: 'lax'
+    });
     return res.json({ success: true });
   }
   res.status(401).json({ error: 'Incorrect password' });
 });
 
 app.post('/auth/logout', (req, res) => {
+  res.clearCookie(REMEMBER_COOKIE);
   req.session.destroy(() => res.json({ success: true }));
 });
 
 app.get('/auth/check', (req, res) => {
-  res.json({ authenticated: !!req.session.authenticated });
+  let authenticated = !!req.session.authenticated;
+  if (!authenticated) {
+    try { authenticated = isRemembered(req); } catch(e) {}
+  }
+  res.json({ authenticated });
 });
 
 app.use(express.static(path.join(__dirname)));
