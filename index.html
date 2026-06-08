@@ -251,7 +251,7 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 <body>
 
 <!-- PASSWORD GATE -->
-<div id="authOverlay" style="display:none;position:fixed;inset:0;background:#0f1220;z-index:9999;display:flex;align-items:center;justify-content:center;">
+<div id="authOverlay" style="display:none;position:fixed;inset:0;background:#0f1220;z-index:9999;align-items:center;justify-content:center;">
   <div style="background:#1e2235;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px 36px;width:360px;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
     <div style="text-align:center;margin-bottom:28px;">
       <div style="width:48px;height:48px;background:#2563eb;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px;">⚡</div>
@@ -465,9 +465,9 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
 // ── Auth gate ──
 async function checkAuth() {
   try {
-    const res = await fetch('/auth/check');
+    const res = await fetch('/auth/check', { credentials: 'include' });
     const data = await res.json();
-    if (data.authenticated) initApp();
+    if (data.authenticated) { hideAuthOverlay(); initApp(); }
     else showAuthOverlay();
   } catch(e) { showAuthOverlay(); }
 }
