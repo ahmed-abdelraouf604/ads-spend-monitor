@@ -1534,25 +1534,50 @@ window.showPageOrig = showPage;
 let devicesData = [];
 
 function parseUserAgent(ua) {
-  if (!ua) return { label: 'Unknown Device', icon: '🖥️' };
-  const isMobile = /iPhone|Android.*Mobile|Windows Phone/.test(ua);
-  const isTablet  = /iPad|Android(?!.*Mobile)/.test(ua);
-  const icon = (isMobile || isTablet) ? '📱' : '🖥️';
-  let os = '';
-  if      (/Windows/.test(ua))       os = 'Windows';
-  else if (/Mac OS X/.test(ua))      os = 'macOS';
-  else if (/iPhone/.test(ua))        os = 'iOS';
-  else if (/iPad/.test(ua))          os = 'iPadOS';
-  else if (/Android/.test(ua))       os = 'Android';
-  else if (/Linux/.test(ua))         os = 'Linux';
+  if (!ua) return { label: 'Unknown Device', icon: '💻' };
+
+  // Device type
+  const isTablet = /iPad|Android(?!.*Mobile)|Tablet/i.test(ua);
+  const isMobile = !isTablet && /iPhone|iPod|Android.*Mobile|Windows Phone/i.test(ua);
+  const icon = isTablet ? '📟' : isMobile ? '📱' : '💻';
+
+  // OS + version
+  let os = '', m;
+  if ((m = ua.match(/Windows NT ([\d.]+)/))) {
+    const map = { '10.0':'Windows 10', '6.3':'Windows 8.1', '6.2':'Windows 8', '6.1':'Windows 7' };
+    os = map[m[1]] || 'Windows';
+  } else if ((m = ua.match(/Mac OS X ([\d_]+)/))) {
+    const v = m[1].replace(/_/g, '.').split('.');
+    const major = parseInt(v[0]), minor = parseInt(v[1] || '0');
+    if (major >= 11) os = 'macOS ' + major;
+    else {
+      const names = { 15:'Catalina', 14:'Mojave', 13:'High Sierra', 12:'Sierra', 11:'El Capitan', 10:'Yosemite' };
+      os = names[minor] ? 'macOS ' + names[minor] : `macOS 10.${minor}`;
+    }
+  } else if ((m = ua.match(/iPhone OS ([\d_]+)/))) {
+    os = 'iOS ' + m[1].replace(/_/g, '.').split('.').slice(0, 2).join('.');
+  } else if ((m = ua.match(/CPU OS ([\d_]+)/))) {
+    os = 'iPadOS ' + m[1].replace(/_/g, '.').split('.').slice(0, 2).join('.');
+  } else if ((m = ua.match(/Android ([\d.]+)/))) {
+    os = 'Android ' + m[1].split('.')[0];
+  } else if (/CrOS/.test(ua)) {
+    os = 'ChromeOS';
+  } else if (/Linux/.test(ua)) {
+    os = 'Linux';
+  }
+
+  // Browser + major version (Edge before Chrome, Opera before Chrome)
   let browser = '';
-  if      (/Edg\//.test(ua))              browser = 'Edge';
-  else if (/OPR\//.test(ua))              browser = 'Opera';
-  else if (/SamsungBrowser/.test(ua))     browser = 'Samsung Browser';
-  else if (/Chrome\//.test(ua))           browser = 'Chrome';
-  else if (/Firefox\//.test(ua))          browser = 'Firefox';
-  else if (/Safari\//.test(ua))           browser = 'Safari';
-  return { label: [browser, os].filter(Boolean).join(' on ') || 'Unknown Browser', icon };
+  if      ((m = ua.match(/Edg\/([\d]+)/)))               browser = 'Edge '    + m[1];
+  else if ((m = ua.match(/OPR\/([\d]+)/)))                browser = 'Opera '   + m[1];
+  else if ((m = ua.match(/SamsungBrowser\/([\d]+)/)))     browser = 'Samsung ' + m[1];
+  else if ((m = ua.match(/Chrome\/([\d]+)/)))             browser = 'Chrome '  + m[1];
+  else if ((m = ua.match(/Firefox\/([\d]+)/)))            browser = 'Firefox ' + m[1];
+  else if ((m = ua.match(/Version\/([\d]+).*Safari/)))    browser = 'Safari '  + m[1];
+  else if (/Safari/.test(ua))                             browser = 'Safari';
+
+  const label = [browser, os].filter(Boolean).join(' · ') || 'Unknown Browser';
+  return { label, icon };
 }
 
 function timeAgo(iso) {

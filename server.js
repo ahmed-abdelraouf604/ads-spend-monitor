@@ -141,11 +141,6 @@ app.post('/auth/logout', async (req, res) => {
 app.get('/auth/check', async (req, res) => {
   try {
     if (await isSessionValid(req.sessionID)) return res.json({ authenticated: true });
-    if (req.session.authenticated || isRemembered(req)) {
-      req.session.authenticated = true;
-      await upsertDbSession(req); // await so next API call finds the row
-      return res.json({ authenticated: true });
-    }
   } catch(e) {}
   res.json({ authenticated: false });
 });
@@ -233,9 +228,15 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
 app.delete('/api/sessions', requireAdmin, async (req, res) => {
   const current = req.sessionID;
   if (!current) return res.status(400).json({ error: 'Cannot identify current session' });
+  const { data: others } = await supabase.from('sessions').select('session_id')
+    .neq('session_id', current);
   const { error } = await supabase.from('sessions').delete().neq('session_id', current);
   if (error) return res.status(500).json({ error: error.message });
-  Object.keys(authCache).forEach(k => { if (k !== current) { delete authCache[k]; delete lastSeenCache[k]; } });
+  (others || []).forEach(s => {
+    req.sessionStore.destroy(s.session_id, () => {});
+    delete authCache[s.session_id];
+    delete lastSeenCache[s.session_id];
+  });
   res.json({ success: true });
 });
 
@@ -244,7 +245,13 @@ app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
     .eq('id', req.params.id).maybeSingle();
   const { error } = await supabase.from('sessions').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  if (sess?.session_id) { delete authCache[sess.session_id]; delete lastSeenCache[sess.session_id]; }
+  if (sess?.session_id) {
+    req.sessionStore.destroy(sess.session_id, err => {
+      if (err) console.error('sessionStore.destroy:', err.message);
+    });
+    delete authCache[sess.session_id];
+    delete lastSeenCache[sess.session_id];
+  }
   res.json({ success: true });
 });
 
