@@ -100,13 +100,9 @@ async function upsertDbSession(req) {
 async function requireAuth(req, res, next) {
   try {
     if (await isSessionValid(req.sessionID)) return next();
-    // Fallback: in-memory session or HMAC cookie (pre-device-manager logins)
-    if (req.session.authenticated || isRemembered(req)) {
-      req.session.authenticated = true;
-      upsertDbSession(req).catch(() => {}); // register/migrate — fire & forget
-      return next();
-    }
   } catch(e) { console.error('requireAuth:', e.message); }
+  // No fallback here — revoked sessions must stay revoked.
+  // HMAC / in-memory migration happens only in /auth/check at page load.
   res.status(401).json({ error: 'Unauthorized' });
 }
 
