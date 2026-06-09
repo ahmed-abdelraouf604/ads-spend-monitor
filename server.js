@@ -161,25 +161,28 @@ async function bootstrapAdmin() {
 }
 
 // ── Device name helpers ──
-function buildUAName(ua) {
-  if (!ua) return 'Unknown Device';
-  let m, browser = '', os = '';
+// osHint: accurate OS name sent by the client via User-Agent Client Hints API
+function buildUAName(ua, osHint) {
+  if (!ua) return osHint || 'Unknown Device';
+  let m, browser = '', os = osHint || '';
   if      ((m = ua.match(/Edg\/([\d]+)/)))            browser = 'Edge '    + m[1];
   else if ((m = ua.match(/OPR\/([\d]+)/)))             browser = 'Opera '   + m[1];
   else if ((m = ua.match(/Chrome\/([\d]+)/)))          browser = 'Chrome '  + m[1];
   else if ((m = ua.match(/Firefox\/([\d]+)/)))         browser = 'Firefox ' + m[1];
   else if ((m = ua.match(/Version\/([\d]+).*Safari/))) browser = 'Safari '  + m[1];
   else if (/Safari/.test(ua))                          browser = 'Safari';
-  if      ((m = ua.match(/Windows NT ([\d.]+)/)))      os = ({'10.0':'Windows 10','6.3':'Windows 8.1','6.2':'Windows 8','6.1':'Windows 7'}[m[1]] || 'Windows');
-  else if (/Mac OS X/.test(ua))    os = 'macOS';
-  else if (/Android/.test(ua))     os = 'Android';
-  else if (/iPhone|iPad/.test(ua)) os = 'iOS';
-  else if (/CrOS/.test(ua))        os = 'ChromeOS';
-  else if (/Linux/.test(ua))       os = 'Linux';
+  if (!os) {
+    if      ((m = ua.match(/Windows NT ([\d.]+)/)))    os = ({'10.0':'Windows 10','6.3':'Windows 8.1','6.2':'Windows 8','6.1':'Windows 7'}[m[1]] || 'Windows');
+    else if (/Mac OS X/.test(ua))    os = 'macOS';
+    else if (/Android/.test(ua))     os = 'Android';
+    else if (/iPhone|iPad/.test(ua)) os = 'iOS';
+    else if (/CrOS/.test(ua))        os = 'ChromeOS';
+    else if (/Linux/.test(ua))       os = 'Linux';
+  }
   return [browser, os].filter(Boolean).join(' · ') || 'Unknown Device';
 }
 
-async function resolveDeviceName(ip, ua) {
+async function resolveDeviceName(ip, ua, osHint) {
   const loopback = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
   if (ip && !loopback.includes(ip)) {
     try {
@@ -190,12 +193,12 @@ async function resolveDeviceName(ip, ua) {
       if (host) return host;
     } catch(e) { /* not resolvable — fall through */ }
   }
-  return buildUAName(ua);
+  return buildUAName(ua, osHint);
 }
 
 // ── Login / Logout ──
 app.post('/auth/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, osHint } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: 'Username and password required' });
 
@@ -211,7 +214,7 @@ app.post('/auth/login', async (req, res) => {
   req.session.userId     = user.id;
   req.session.username   = user.username;
   req.session.isAdmin    = user.is_admin;
-  req.session.deviceName = await resolveDeviceName(getClientIp(req), req.headers['user-agent'] || '');
+  req.session.deviceName = await resolveDeviceName(getClientIp(req), req.headers['user-agent'] || '', osHint || null);
   const deviceId = getDeviceCookie(req) || crypto.randomUUID();
   await upsertDeviceSession(req, deviceId);
   res.cookie('did', deviceId, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' });

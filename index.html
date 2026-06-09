@@ -564,6 +564,23 @@ function hideAuthOverlay() {
   document.getElementById('authOverlay').style.display = 'none';
 }
 
+async function getOsHint() {
+  try {
+    if (navigator.userAgentData) {
+      const d = await navigator.userAgentData.getHighEntropyValues(['platform', 'platformVersion']);
+      if (d.platform === 'Windows') {
+        // Windows 11 reports platformVersion major >= 13; Win 10 reports < 13
+        return parseInt(d.platformVersion.split('.')[0], 10) >= 13 ? 'Windows 11' : 'Windows 10';
+      }
+      if (d.platform === 'macOS')   return 'macOS';
+      if (d.platform === 'Linux')   return 'Linux';
+      if (d.platform === 'Android') return 'Android';
+      if (d.platform)               return d.platform;
+    }
+  } catch(e) {}
+  return null;
+}
+
 async function submitLogin() {
   const unInput = document.getElementById('authUsernameInput');
   const pwInput = document.getElementById('authPasswordInput');
@@ -573,10 +590,11 @@ async function submitLogin() {
   if (!username || !password) { errEl.textContent = 'Please enter username and password.'; return; }
   errEl.textContent = '';
   try {
+    const osHint = await getOsHint();
     const res = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, osHint })
     });
     const data = await res.json();
     if (data.success) {
