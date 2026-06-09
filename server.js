@@ -76,7 +76,24 @@ async function upsertDbSession(req) {
 
 async function requireAuth(req, res, next) {
   try {
-    if (await isSessionValid(req.sessionID)) return next();
+    if (await isSessionValid(req.sessionID)) {
+      // Re-hydrate session from DB when express-session lost in-memory data (e.g. after restart)
+      if (!req.session.userId) {
+        const { data: sess } = await supabase.from('sessions')
+          .select('user_id, username').eq('session_id', req.sessionID).maybeSingle();
+        if (sess?.user_id) {
+          const { data: user } = await supabase.from('users')
+            .select('id, username, is_admin').eq('id', sess.user_id).maybeSingle();
+          if (user) {
+            req.session.userId   = user.id;
+            req.session.username = user.username;
+            req.session.isAdmin  = user.is_admin;
+            console.log('[requireAuth] re-hydrated session for', user.username, '(isAdmin:', user.is_admin, ')');
+          }
+        }
+      }
+      return next();
+    }
   } catch(e) { console.error('requireAuth:', e.message); }
   res.status(401).json({ error: 'Unauthorized' });
 }
@@ -391,8 +408,10 @@ app.delete('/api/logins/:email', async (req, res) => {
 
 // ACCOUNTS DISCOVERY
 app.get('/api/accounts', async (req, res) => {
+  console.log('[/api/accounts] session:', { userId: req.session.userId, isAdmin: req.session.isAdmin, username: req.session.username });
   try {
     const allowedAccounts = await getUserAllowedAccounts(req); // null = admin (all)
+    console.log('[/api/accounts] allowedAccounts:', allowedAccounts === null ? 'null (admin - all)' : `Set(${allowedAccounts.size})`);
     const logins = await getAllLogins();
     const results = [];
     for (const login of logins) {
@@ -409,6 +428,7 @@ app.get('/api/accounts', async (req, res) => {
     const filtered = allowedAccounts !== null
       ? results.filter(a => allowedAccounts.has(a.accountId))
       : results;
+    console.log('[/api/accounts] returning', filtered.length, 'of', results.length, 'accounts');
     res.json({ accounts: filtered });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
