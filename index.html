@@ -593,6 +593,7 @@ async function submitLogin() {
     const osHint = await getOsHint();
     const res = await fetch('/auth/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, osHint })
     });

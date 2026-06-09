@@ -62,36 +62,68 @@ function getDeviceCookie(req) {
 
 async function upsertDeviceSession(req, deviceId) {
   const now = new Date().toISOString();
-  const { data: existing } = await supabase.from('sessions')
-    .select('session_id, first_login_at').eq('device_id', deviceId).maybeSingle();
+  try {
+    // List rows for this device (use list+limit instead of maybeSingle so
+    // pre-existing duplicates don't throw a "multiple rows" error)
+    const { data: rows, error: selErr } = await supabase.from('sessions')
+      .select('id, session_id, first_login_at')
+      .eq('device_id', deviceId)
+      .order('first_login_at', { ascending: true });
+    if (selErr) throw selErr;
 
-  if (existing) {
-    // Same device logging in again — invalidate old auth cache entry, update the row
-    if (existing.session_id) delete authCache[existing.session_id];
-    await supabase.from('sessions').update({
-      session_id:  req.sessionID,
-      ip_address:  getClientIp(req),
-      user_agent:  req.headers['user-agent'] || '',
-      user_id:     req.session.userId     || null,
-      username:    req.session.username   || null,
-      device_name: req.session.deviceName || null,
+    if (rows && rows.length) {
+      // Same device logging in again — reuse the oldest row (preserve first_login_at)
+      const keep = rows[0];
+      if (keep.session_id) delete authCache[keep.session_id];
+      const { error: updErr } = await supabase.from('sessions').update({
+        session_id:   req.sessionID,
+        ip_address:   getClientIp(req),
+        user_agent:   req.headers['user-agent'] || '',
+        user_id:      req.session.userId     || null,
+        username:     req.session.username   || null,
+        device_name:  req.session.deviceName || null,
+        last_seen_at: now
+        // first_login_at intentionally NOT updated — preserved from first login
+      }).eq('id', keep.id);
+      if (updErr) throw updErr;
+
+      // Collapse any duplicate rows for the same device into the one we kept
+      const dupes = rows.slice(1);
+      if (dupes.length) {
+        dupes.forEach(r => r.session_id && delete authCache[r.session_id]);
+        await supabase.from('sessions').delete().in('id', dupes.map(r => r.id));
+      }
+    } else {
+      // New device — insert a fresh row
+      const { error: insErr } = await supabase.from('sessions').insert({
+        session_id:     req.sessionID,
+        device_id:      deviceId,
+        ip_address:     getClientIp(req),
+        user_agent:     req.headers['user-agent'] || '',
+        user_id:        req.session.userId     || null,
+        username:       req.session.username   || null,
+        device_name:    req.session.deviceName || null,
+        first_login_at: now,
+        created_at:     now,
+        last_seen_at:   now
+      });
+      if (insErr) throw insErr;
+    }
+  } catch (e) {
+    // Device-aware write failed (e.g. missing device_id/first_login_at columns).
+    // Fall back to a plain session_id upsert so a row ALWAYS exists — auth checks
+    // and the Device Manager both read from this table.
+    console.error('[upsertDeviceSession] device write failed, using fallback:', e.message);
+    await supabase.from('sessions').upsert({
+      session_id:   req.sessionID,
+      ip_address:   getClientIp(req),
+      user_agent:   req.headers['user-agent'] || '',
+      user_id:      req.session.userId     || null,
+      username:     req.session.username   || null,
+      device_name:  req.session.deviceName || null,
+      created_at:   now,
       last_seen_at: now
-      // first_login_at intentionally NOT updated — preserved from first login
-    }).eq('device_id', deviceId);
-  } else {
-    // New device — insert a fresh row
-    await supabase.from('sessions').insert({
-      session_id:     req.sessionID,
-      device_id:      deviceId,
-      ip_address:     getClientIp(req),
-      user_agent:     req.headers['user-agent'] || '',
-      user_id:        req.session.userId     || null,
-      username:       req.session.username   || null,
-      device_name:    req.session.deviceName || null,
-      first_login_at: now,
-      created_at:     now,
-      last_seen_at:   now
-    });
+    }, { onConflict: 'session_id' });
   }
   authCache[req.sessionID] = { valid: true, ts: Date.now() };
 }
