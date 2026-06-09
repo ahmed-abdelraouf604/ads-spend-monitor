@@ -60,8 +60,9 @@ async function upsertDbSession(req) {
     session_id:   req.sessionID,
     ip_address:   getClientIp(req),
     user_agent:   req.headers['user-agent'] || '',
-    user_id:      req.session.userId  || null,
-    username:     req.session.username || null,
+    user_id:      req.session.userId     || null,
+    username:     req.session.username   || null,
+    device_name:  req.session.deviceName || null,
     created_at:   now,
     last_seen_at: now
   }, { onConflict: 'session_id' });
@@ -152,6 +153,17 @@ app.post('/auth/login', async (req, res) => {
   req.session.isAdmin  = user.is_admin;
   await upsertDbSession(req);
   res.json({ success: true, isAdmin: user.is_admin });
+});
+
+app.patch('/api/sessions/current/name', requireAuth, async (req, res) => {
+  const { deviceName } = req.body;
+  if (!deviceName) return res.status(400).json({ error: 'deviceName required' });
+  const { error } = await supabase.from('sessions')
+    .update({ device_name: deviceName })
+    .eq('session_id', req.sessionID);
+  if (error) return res.status(500).json({ error: error.message });
+  req.session.deviceName = deviceName;
+  res.json({ success: true });
 });
 
 app.post('/auth/logout', async (req, res) => {
@@ -307,6 +319,7 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
       isCurrent:  s.session_id === current,
       ipAddress:  s.ip_address,
       userAgent:  s.user_agent,
+      deviceName: s.device_name || null,
       username:   s.username || 'Unknown',
       createdAt:  s.created_at,
       lastSeenAt: s.last_seen_at
