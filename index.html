@@ -680,7 +680,8 @@ async function loadWhitelistFromDB() {
       whitelist.add(id);
       whitelistData[id] = {
         accountId: id, accountName: a.accountName || a.account_name,
-        mccId: a.mccId || a.mcc_id, loginEmail: a.loginEmail || a.login_email,
+        mccId: a.mccId || a.mcc_id, mccName: a.mccName || a.mcc_name || null,
+        loginEmail: a.loginEmail || a.login_email,
         currency: a.currency || '',
         monthlyBudget: a.monthlyBudget || a.monthly_budget || null,
         rangePercent:  a.rangePercent  || a.range_percent  || 10
@@ -1288,44 +1289,36 @@ const COL_DEFS = [
   { key:'convRate',    label:'Conv. Rate (%)' },
 ];
 
-// Build MCC structure from discovered accounts
+// Build MCC structure from discovered accounts.
+// discoveredAccounts (the full /api/accounts tree) is the primary source — it carries
+// the real MCC name and ALL sub-accounts. allSpend / whitelistData only enrich names.
 function buildPerfMccs() {
   perfMccs = {};
   const allowed = id => myAccountIds === null || myAccountIds.has((id||'').replace(/-/g,''));
+  const isReal  = name => name && !/^MCC\s/i.test(name); // a real name, not the "MCC <id>" placeholder
 
-  // Source 1: discoveredAccounts (has mccName from API)
+  function add(mccIdRaw, mccNameRaw, accountId, accountName, currency) {
+    const clean = (accountId||'').replace(/-/g,'');
+    if (!allowed(clean)) return;
+    const mccId    = (mccIdRaw || 'unknown').replace(/-/g,'');
+    const realName = isReal(mccNameRaw) ? mccNameRaw : null;
+    if (!perfMccs[mccId]) {
+      perfMccs[mccId] = { mccId, mccName: realName || ('MCC ' + mccId), accounts: [] };
+    } else if (realName && !isReal(perfMccs[mccId].mccName)) {
+      perfMccs[mccId].mccName = realName; // upgrade placeholder to the real MCC name
+    }
+    if (clean && !perfMccs[mccId].accounts.find(x => x.accountId === clean))
+      perfMccs[mccId].accounts.push({ accountId: clean, accountName: accountName || ('Account ' + clean), currency: currency || '' });
+  }
+
+  // Source 1: discoveredAccounts — full account tree + real MCC names from /api/accounts
   Object.keys(discoveredAccounts).forEach(email => {
-    (discoveredAccounts[email] || []).forEach(a => {
-      if (!allowed(a.accountId)) return;
-      const mccId = (a.mccId || 'unknown').replace(/-/g,'');
-      const mccName = a.mccName || null;
-      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: mccName || ('MCC ' + mccId), accounts: [] };
-      else if (mccName && perfMccs[mccId].mccName.startsWith('MCC ')) perfMccs[mccId].mccName = mccName;
-      const clean = (a.accountId||'').replace(/-/g,'');
-      if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
-        perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
-    });
+    (discoveredAccounts[email] || []).forEach(a => add(a.mccId, a.mccName, a.accountId, a.accountName, a.currency));
   });
-
-  // Source 2: allSpend
-  allSpend.forEach(a => {
-    if (!allowed(a.accountId)) return;
-    const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
-    if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
-    const clean = (a.accountId||'').replace(/-/g,'');
-    if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
-      perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
-  });
-
-  // Source 3: whitelistData (fallback)
-  Object.values(whitelistData).forEach(a => {
-    if (!allowed(a.accountId)) return;
-    const mccId = (a.mccId||'').replace(/-/g,'') || 'unknown';
-    if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: 'MCC ' + mccId, accounts: [] };
-    const clean = (a.accountId||'').replace(/-/g,'');
-    if (!perfMccs[mccId].accounts.find(x => x.accountId === clean))
-      perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
-  });
+  // Source 2: allSpend (whitelisted only — name enrichment / fallback)
+  allSpend.forEach(a => add(a.mccId, a.mccName, a.accountId, a.accountName, a.currency));
+  // Source 3: whitelistData (now carries mccName from /api/whitelist — name enrichment / fallback)
+  Object.values(whitelistData).forEach(a => add(a.mccId, a.mccName, a.accountId, a.accountName, a.currency));
 }
 
 async function initPerformanceTab() {
@@ -1333,11 +1326,14 @@ async function initPerformanceTab() {
   if (allSpend.length === 0 && Object.keys(whitelistData).length === 0) {
     await loadWhitelistFromDB();
   }
-  // If discoveredAccounts is empty, trigger account discovery to get MCC names
-  if (Object.keys(discoveredAccounts).length === 0 && logins.length > 0) {
+  // Discover the FULL account tree from /api/accounts so the dropdowns show every
+  // sub-account (not just whitelisted) and real MCC names. Runs whenever the tree
+  // is empty — no longer gated on logins being loaded first.
+  if (Object.keys(discoveredAccounts).length === 0) {
+    const mccLabel = document.getElementById('mccDropLabel');
+    if (mccLabel) mccLabel.textContent = 'Loading accounts…';
     try {
       const res = await api('/api/accounts');
-      logins.forEach(l => { if (!discoveredAccounts[l.email]) discoveredAccounts[l.email] = []; });
       (res.accounts||[]).forEach(a => {
         if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
         if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
@@ -1546,19 +1542,12 @@ async function loadPerformance() {
     let accountIds = [];
     if (accMode === 'some') {
       accountIds = [...selAccounts];
-    } else if (accMode === 'none') {
-      accountIds = [];
-    } else if (mccMode === 'some') {
-      // All accounts from selected MCCs
-      selMccs.forEach(mccId => {
-        const m = perfMccs[mccId];
-        if (m) m.accounts.forEach(a => accountIds.push(a.accountId));
-      });
-    } else if (mccMode === 'none') {
+    } else if (accMode === 'none' || mccMode === 'none') {
       accountIds = [];
     } else {
-      // All whitelisted accounts
-      accountIds = Object.keys(whitelistData).map(id => id.replace(/-/g,''));
+      // accMode === 'all' → every account under the currently selected MCC(s)
+      // (or all discovered accounts when "All MCCs" is selected)
+      accountIds = getVisibleAccounts();
     }
 
     if (!accountIds.length) {

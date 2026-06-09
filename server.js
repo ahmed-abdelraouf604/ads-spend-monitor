@@ -652,6 +652,7 @@ app.get('/api/whitelist', async (req, res) => {
     accountId:     r.account_id,
     accountName:   r.account_name,
     mccId:         r.mcc_id,
+    mccName:       r.mcc_name,
     loginEmail:    r.login_email,
     monthlyBudget: r.monthly_budget,
     rangePercent:  r.range_percent
