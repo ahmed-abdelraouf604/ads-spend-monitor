@@ -31,11 +31,6 @@ app.use(session({
 
 // ============================================================
 // AUTH  +  DEVICE / SESSION MANAGER
-//
-// Each login creates a row in the "sessions" Supabase table
-// keyed by the express session ID.  requireAuth checks the DB
-// (cached 60 s in memory) so revocation takes effect quickly
-// and server restarts don't log anyone out.
 // ============================================================
 
 function getClientIp(req) {
@@ -43,11 +38,10 @@ function getClientIp(req) {
     || req.socket?.remoteAddress || req.ip || '';
 }
 
-// In-memory caches — avoids a DB hit on every request
-const authCache     = {}; // sessionId → { valid: bool, ts: number }
-const lastSeenCache = {}; // sessionId → timestamp of last DB write
-const AUTH_CACHE_TTL  = 60_000;      // re-check DB every 60 s
-const LAST_SEEN_TTL   = 5 * 60_000; // write last_seen_at every 5 min
+const authCache     = {};
+const lastSeenCache = {};
+const AUTH_CACHE_TTL  = 60_000;
+const LAST_SEEN_TTL   = 5 * 60_000;
 
 async function isSessionValid(sessionId) {
   if (!sessionId) return false;
@@ -77,7 +71,6 @@ async function upsertDbSession(req) {
 async function requireAuth(req, res, next) {
   try {
     if (await isSessionValid(req.sessionID)) {
-      // Re-hydrate session from DB when express-session lost in-memory data (e.g. after restart)
       if (!req.session.userId || req.session.isAdmin === undefined) {
         const { data: sess } = await supabase.from('sessions')
           .select('user_id, username').eq('session_id', req.sessionID).maybeSingle();
@@ -92,7 +85,6 @@ async function requireAuth(req, res, next) {
             console.log('[requireAuth] re-hydrated session for', user.username, '(isAdmin:', req.session.isAdmin, ')');
           }
         } else if (sess?.username) {
-          // Fallback: look up by username if user_id not stored
           const { data: user } = await supabase.from('users')
             .select('id, username, is_admin').eq('username', sess.username).maybeSingle();
           if (user) {
@@ -103,7 +95,6 @@ async function requireAuth(req, res, next) {
           }
         }
       }
-      // Extra safety: ensure isAdmin is always a boolean
       if (req.session.isAdmin === undefined) req.session.isAdmin = false;
       return next();
     }
@@ -116,16 +107,14 @@ function requireAdmin(req, res, next) {
   res.status(403).json({ error: 'Admin access required' });
 }
 
-// Returns null for admins (no restriction) or a Set<account_id> for regular users
 async function getUserAllowedAccounts(req) {
-  if (req.session.isAdmin === true) return null; // admin sees all
-  if (!req.session.userId) return new Set(); // no user = no accounts
+  if (req.session.isAdmin === true) return null;
+  if (!req.session.userId) return new Set();
   const { data } = await supabase.from('user_accounts')
     .select('account_id').eq('user_id', req.session.userId);
   return new Set((data || []).map(r => r.account_id));
 }
 
-// ── Bootstrap admin on first run ──
 async function bootstrapAdmin() {
   const adminPw = process.env.ADMIN_PASSWORD;
   if (!adminPw) {
@@ -134,7 +123,7 @@ async function bootstrapAdmin() {
   }
   try {
     const { data: users } = await supabase.from('users').select('id').limit(1);
-    if (users && users.length > 0) return; // already have users
+    if (users && users.length > 0) return;
     const hash = await bcrypt.hash(adminPw, 10);
     const { error } = await supabase.from('users')
       .insert({ username: 'admin', password_hash: hash, is_admin: true });
@@ -200,8 +189,6 @@ function makeOAuth2Client() {
 
 // ============================================================
 // PACING CALCULATION
-// expected = (currentDay / 30.4) * monthlyBudget
-// variance = (actualMtd / expected - 1) * 100
 // ============================================================
 function calcPacing(mtdSpend, monthlyBudget, rangePercent) {
   if (!monthlyBudget || monthlyBudget <= 0) return null;
@@ -225,16 +212,15 @@ function calcPacing(mtdSpend, monthlyBudget, rangePercent) {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Protect all /api/* routes
 app.use('/api', requireAuth);
 
-// Debug endpoints — use /debug/ path to bypass /api requireAuth
+// Debug endpoints
 app.get('/debug/session', (req, res) => {
   res.json({
     sessionID: req.sessionID,
-    userId: req.session.userId || null,
-    username: req.session.username || null,
-    isAdmin: req.session.isAdmin,
+    userId:    req.session.userId   || null,
+    username:  req.session.username || null,
+    isAdmin:   req.session.isAdmin,
     authenticated: req.session.authenticated || null
   });
 });
@@ -245,7 +231,56 @@ app.get('/debug/users', async (req, res) => {
   res.json({ users: data || [], error: error?.message || null });
 });
 
-// Update last_seen_at on every authenticated API request (throttled to once per 5 min)
+// ── Debug: test token + account discovery for a single login ──
+app.get('/debug/accounts/:email', async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  try {
+    const { data: login } = await supabase.from('google_logins')
+      .select('*').eq('email', email).maybeSingle();
+    if (!login) return res.json({ error: 'Login not found', email });
+
+    const info = {
+      email,
+      has_access_token:  !!login.access_token,
+      has_refresh_token: !!login.refresh_token,
+      token_expiry:      login.token_expiry,
+      token_expired:     login.token_expiry
+        ? Date.now() > Number(login.token_expiry)
+        : 'unknown (null expiry stored)',
+    };
+
+    let authClient;
+    try {
+      authClient = await getAuthClient(login);
+      info.auth_status = 'ok — token refreshed/valid';
+    } catch(e) {
+      info.auth_status = 'FAILED: ' + e.message;
+      return res.json(info);
+    }
+
+    try {
+      const token    = (await authClient.getAccessToken()).token;
+      const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+      const r = await fetch(`${ADS_BASE}/customers:listAccessibleCustomers`, {
+        headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken }
+      });
+      const d = await r.json();
+      info.listAccessibleCustomers_http_status = r.status;
+      info.listAccessibleCustomers_response    = d;
+
+      if (r.ok && d.resourceNames?.length) {
+        info.mcc_ids_found = d.resourceNames.map(n => n.replace('customers/', ''));
+      }
+    } catch(e) {
+      info.listAccessibleCustomers_error = e.message;
+    }
+
+    res.json(info);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.use('/api', (req, res, next) => {
   next();
   const id = req.sessionID;
@@ -259,7 +294,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // ─────────────────────────────────────────────
-// DEVICE MANAGER  — session CRUD (admin only)
+// DEVICE MANAGER
 // ─────────────────────────────────────────────
 app.get('/api/sessions', requireAdmin, async (req, res) => {
   const { data, error } = await supabase.from('sessions').select('*')
@@ -310,7 +345,7 @@ app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// USER MANAGEMENT  (admin only)
+// USER MANAGEMENT
 // ─────────────────────────────────────────────
 app.get('/api/users', requireAdmin, async (req, res) => {
   const { data: users, error } = await supabase
@@ -376,7 +411,6 @@ app.put('/api/users/:id/accounts', requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// Returns the current user's assigned account IDs
 app.get('/api/me/accounts', requireAuth, async (req, res) => {
   if (req.session.isAdmin) {
     const { data } = await supabase.from('whitelist').select('account_id');
@@ -426,51 +460,73 @@ app.get('/auth/callback', async (req, res) => {
 
 // LOGINS
 app.get('/api/logins', async (req, res) => {
-  const { data, error } = await supabase.from('google_logins').select('email,name,picture,updated_at').order('created_at', { ascending: true });
+  const { data, error } = await supabase.from('google_logins')
+    .select('email,name,picture,updated_at').order('created_at', { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
   res.json({ logins: data || [] });
 });
 
 app.delete('/api/logins/:email', async (req, res) => {
-  const { error } = await supabase.from('google_logins').delete().eq('email', decodeURIComponent(req.params.email));
+  const { error } = await supabase.from('google_logins')
+    .delete().eq('email', decodeURIComponent(req.params.email));
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
 });
 
+// ============================================================
 // ACCOUNTS DISCOVERY
+// ============================================================
 app.get('/api/accounts', async (req, res) => {
-  console.log('[/api/accounts] session:', { userId: req.session.userId, isAdmin: req.session.isAdmin, username: req.session.username });
+  console.log('[/api/accounts] session:', {
+    userId:   req.session.userId,
+    isAdmin:  req.session.isAdmin,
+    username: req.session.username
+  });
   try {
-    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin (all)
-    console.log('[/api/accounts] allowedAccounts:', allowedAccounts === null ? 'null (admin - all)' : `Set(${allowedAccounts.size})`);
-    const logins = await getAllLogins();
+    const allowedAccounts = await getUserAllowedAccounts(req);
+    console.log('[/api/accounts] allowedAccounts:',
+      allowedAccounts === null ? 'null (admin)' : `Set(${allowedAccounts.size})`);
+
+    const logins  = await getAllLogins();
     const results = [];
+
     for (const login of logins) {
       try {
         const authClient = await getAuthClient(login);
         const mccs = await listAccessibleCustomers(authClient);
+        console.log(`[/api/accounts] ${login.email} → ${mccs.length} MCCs:`, mccs);
         for (const mccId of mccs) {
-          const mccName = await getMccName(authClient, mccId);
+          const mccName  = await getMccName(authClient, mccId);
           const accounts = await listSubAccounts(authClient, mccId);
+          console.log(`[/api/accounts] MCC ${mccId} (${mccName}) → ${accounts.length} accounts`);
           results.push(...accounts.map(a => ({ ...a, loginEmail: login.email, mccId, mccName })));
         }
-      } catch(e) { console.error('Account error for', login.email, e.message); }
+      } catch(e) {
+        console.error('[/api/accounts] error for', login.email, ':', e.message);
+      }
     }
+
     const filtered = allowedAccounts !== null
       ? results.filter(a => allowedAccounts.has(a.accountId))
       : results;
+
     console.log('[/api/accounts] returning', filtered.length, 'of', results.length, 'accounts');
     res.json({ accounts: filtered });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('[/api/accounts] fatal:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// ============================================================
 // SPEND + PACING
+// ============================================================
 app.get('/api/spend', async (req, res) => {
   try {
-    const logins         = await getAllLogins();
-    const whitelist      = await getWhitelist();
-    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin (all)
-    const results        = [];
+    const logins          = await getAllLogins();
+    const whitelist       = await getWhitelist();
+    const allowedAccounts = await getUserAllowedAccounts(req);
+    const results         = [];
 
     for (const login of logins) {
       let myAccounts = whitelist.filter(w => w.login_email === login.email);
@@ -500,6 +556,7 @@ app.get('/api/spend', async (req, res) => {
         }
       } catch(e) { console.error('Auth error for', login.email, e.message); }
     }
+
     const order = { overspending: 0, underspending: 1, on_track: 2 };
     results.sort((a, b) => {
       const aO = a.pacing ? (order[a.pacing.status] ?? 3) : 4;
@@ -510,7 +567,9 @@ app.get('/api/spend', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// WHITELIST — GET current list
+// ============================================================
+// WHITELIST
+// ============================================================
 app.get('/api/whitelist', async (req, res) => {
   const { data, error } = await supabase.from('whitelist').select('*');
   if (error) return res.status(500).json({ error: error.message });
@@ -525,7 +584,6 @@ app.get('/api/whitelist', async (req, res) => {
   res.json({ accounts });
 });
 
-// WHITELIST — upsert only, never deletes existing accounts or their budgets
 app.post('/api/whitelist', async (req, res) => {
   const { accounts, removed } = req.body;
   if (!Array.isArray(accounts)) return res.status(400).json({ error: 'accounts must be array' });
@@ -535,7 +593,8 @@ app.post('/api/whitelist', async (req, res) => {
     await supabase.from('whitelist').delete().in('account_id', ids);
   }
 
-  const { data: existing } = await supabase.from('whitelist').select('account_id,monthly_budget,range_percent');
+  const { data: existing } = await supabase.from('whitelist')
+    .select('account_id,monthly_budget,range_percent');
   const existingMap = {};
   (existing || []).forEach(r => { existingMap[r.account_id] = r; });
 
@@ -575,18 +634,24 @@ app.patch('/api/whitelist/:accountId', async (req, res) => {
   res.json({ success: true });
 });
 
-// GOOGLE ADS API
+// ============================================================
+// GOOGLE ADS API HELPERS
+// ============================================================
 const ADS_VERSION = 'v23';
 const ADS_BASE    = `https://googleads.googleapis.com/${ADS_VERSION}`;
 
 async function listAccessibleCustomers(authClient) {
-  const token = (await authClient.getAccessToken()).token;
+  const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   const res = await fetch(`${ADS_BASE}/customers:listAccessibleCustomers`, {
     headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken }
   });
   const data = await res.json();
-  if (!res.ok) { console.error('listAccessibleCustomers:', JSON.stringify(data)); return []; }
+  if (!res.ok) {
+    const msg = data?.error?.message || JSON.stringify(data).substring(0, 300);
+    console.error('[listAccessibleCustomers] API error:', msg);
+    throw new Error('listAccessibleCustomers failed: ' + msg);
+  }
   return (data.resourceNames || []).map(r => r.replace('customers/', ''));
 }
 
@@ -596,7 +661,12 @@ async function getMccName(authClient, mccId) {
     const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
     const res = await fetch(`${ADS_BASE}/customers/${mccId}/googleAds:search`, {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': mccId, 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization':    'Bearer ' + token,
+        'developer-token':  devToken,
+        'login-customer-id': mccId,
+        'Content-Type':     'application/json'
+      },
       body: JSON.stringify({ query: 'SELECT customer.descriptive_name FROM customer LIMIT 1' })
     });
     const data = await res.json();
@@ -608,13 +678,21 @@ async function listSubAccounts(authClient, mccId) {
   const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   const query    = `SELECT customer_client.id, customer_client.descriptive_name, customer_client.currency_code FROM customer_client WHERE customer_client.level = 1 AND customer_client.status = 'ENABLED'`;
-  const res  = await fetch(`${ADS_BASE}/customers/${mccId}/googleAds:search`, {
+  const res = await fetch(`${ADS_BASE}/customers/${mccId}/googleAds:search`, {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': mccId, 'Content-Type': 'application/json' },
+    headers: {
+      'Authorization':    'Bearer ' + token,
+      'developer-token':  devToken,
+      'login-customer-id': mccId,
+      'Content-Type':     'application/json'
+    },
     body: JSON.stringify({ query })
   });
   const data = await res.json();
-  if (!res.ok) return [];
+  if (!res.ok) {
+    console.error('[listSubAccounts] error for MCC', mccId, JSON.stringify(data).substring(0, 200));
+    return [];
+  }
   return (data.results || []).map(r => ({
     accountId:   String(r.customerClient.id),
     accountName: r.customerClient.descriptiveName || 'Account ' + r.customerClient.id,
@@ -625,19 +703,36 @@ async function listSubAccounts(authClient, mccId) {
 async function getAccountSpend(authClient, accountId, mccId) {
   const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-  const headers  = { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': mccId, 'Content-Type': 'application/json' };
+  const headers  = {
+    'Authorization':    'Bearer ' + token,
+    'developer-token':  devToken,
+    'login-customer-id': mccId,
+    'Content-Type':     'application/json'
+  };
   const [dRes, mRes] = await Promise.all([
-    fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, { method: 'POST', headers, body: JSON.stringify({ query: 'SELECT metrics.cost_micros, customer.currency_code FROM customer WHERE segments.date DURING TODAY' }) }),
-    fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, { method: 'POST', headers, body: JSON.stringify({ query: 'SELECT metrics.cost_micros FROM customer WHERE segments.date DURING THIS_MONTH' }) })
+    fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ query: 'SELECT metrics.cost_micros, customer.currency_code FROM customer WHERE segments.date DURING TODAY' })
+    }),
+    fetch(`${ADS_BASE}/customers/${accountId}/googleAds:search`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ query: 'SELECT metrics.cost_micros FROM customer WHERE segments.date DURING THIS_MONTH' })
+    })
   ]);
   const dData = await dRes.json();
   const mData = await mRes.json();
-  return { daily: sumMicros(dData), mtd: sumMicros(mData), currency: dData.results?.[0]?.customer?.currencyCode || '' };
+  return {
+    daily:    sumMicros(dData),
+    mtd:      sumMicros(mData),
+    currency: dData.results?.[0]?.customer?.currencyCode || ''
+  };
 }
 
 function sumMicros(data) {
   if (!data.results) return 0;
-  return Math.round((data.results.reduce((s, r) => s + parseInt(r.metrics?.costMicros || 0, 10), 0) / 1e6) * 100) / 100;
+  return Math.round(
+    (data.results.reduce((s, r) => s + parseInt(r.metrics?.costMicros || 0, 10), 0) / 1e6) * 100
+  ) / 100;
 }
 
 async function getAllLogins() {
@@ -652,14 +747,35 @@ async function getWhitelist() {
   return data || [];
 }
 
+// ── FIXED: always refresh when token_expiry is null or expired ──
 async function getAuthClient(login) {
   const oauth2Client = makeOAuth2Client();
-  oauth2Client.setCredentials({ access_token: login.access_token, refresh_token: login.refresh_token, expiry_date: login.token_expiry });
-  if (login.token_expiry && Date.now() > login.token_expiry - 60000) {
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    await supabase.from('google_logins').update({ access_token: credentials.access_token, token_expiry: credentials.expiry_date, updated_at: new Date().toISOString() }).eq('email', login.email);
-    oauth2Client.setCredentials(credentials);
+  oauth2Client.setCredentials({
+    access_token:  login.access_token,
+    refresh_token: login.refresh_token,
+    expiry_date:   login.token_expiry
+  });
+
+  // Refresh if: token_expiry is null/missing, OR token is expired/within 60s of expiry
+  const needsRefresh = !login.token_expiry || Date.now() > Number(login.token_expiry) - 60000;
+
+  if (needsRefresh && login.refresh_token) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      await supabase.from('google_logins').update({
+        access_token: credentials.access_token,
+        token_expiry: credentials.expiry_date,
+        updated_at:   new Date().toISOString()
+      }).eq('email', login.email);
+      oauth2Client.setCredentials(credentials);
+      console.log('[getAuthClient] refreshed token for', login.email,
+        '— new expiry:', new Date(credentials.expiry_date).toISOString());
+    } catch(e) {
+      console.error('[getAuthClient] token refresh FAILED for', login.email, ':', e.message);
+      throw new Error('Token refresh failed for ' + login.email + '. Please reconnect the Google account. (' + e.message + ')');
+    }
   }
+
   return oauth2Client;
 }
 
@@ -670,7 +786,6 @@ function formatId(id) {
 
 // ============================================================
 // PERFORMANCE METRICS API
-// POST /api/performance
 // ============================================================
 app.post('/api/performance', async (req, res) => {
   try {
@@ -678,9 +793,8 @@ app.post('/api/performance', async (req, res) => {
     if (!Array.isArray(accountIds) || accountIds.length === 0)
       return res.status(400).json({ error: 'accountIds required' });
 
-    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin
+    const allowedAccounts = await getUserAllowedAccounts(req);
 
-    // Normalize and filter by user permissions
     let cleanIds = accountIds.map(id => String(id).replace(/-/g, ''));
     if (allowedAccounts !== null)
       cleanIds = cleanIds.filter(id => allowedAccounts.has(id));
@@ -746,8 +860,7 @@ app.post('/api/performance', async (req, res) => {
           try {
             authClients[acc.login_email]        = await getAuthClient(login);
             accessibleIdsCache[acc.login_email] = await listAccessibleCustomers(authClients[acc.login_email]);
-          }
-          catch(e) { authClients[acc.login_email] = null; }
+          } catch(e) { authClients[acc.login_email] = null; }
         }
       }
       const authClient = authClients[acc.login_email];
@@ -803,12 +916,12 @@ app.post('/api/performance', async (req, res) => {
 });
 
 function buildDateClause(dateRange) {
-  if (!dateRange || dateRange === 'TODAY')       return 'DURING TODAY';
-  if (dateRange === 'YESTERDAY')                 return 'DURING YESTERDAY';
-  if (dateRange === 'LAST_7_DAYS')               return 'DURING LAST_7_DAYS';
-  if (dateRange === 'LAST_30_DAYS')              return 'DURING LAST_30_DAYS';
-  if (dateRange === 'THIS_MONTH')                return 'DURING THIS_MONTH';
-  if (dateRange === 'LAST_MONTH')                return 'DURING LAST_MONTH';
+  if (!dateRange || dateRange === 'TODAY')   return 'DURING TODAY';
+  if (dateRange === 'YESTERDAY')             return 'DURING YESTERDAY';
+  if (dateRange === 'LAST_7_DAYS')           return 'DURING LAST_7_DAYS';
+  if (dateRange === 'LAST_30_DAYS')          return 'DURING LAST_30_DAYS';
+  if (dateRange === 'THIS_MONTH')            return 'DURING THIS_MONTH';
+  if (dateRange === 'LAST_MONTH')            return 'DURING LAST_MONTH';
   if (dateRange && dateRange.from && dateRange.to)
     return `BETWEEN '${dateRange.from}' AND '${dateRange.to}'`;
   return 'DURING LAST_30_DAYS';
@@ -839,10 +952,10 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
 
   async function tryFetch(loginId) {
     const headers = {
-      'Authorization': 'Bearer ' + token,
-      'developer-token': devToken,
+      'Authorization':    'Bearer ' + token,
+      'developer-token':  devToken,
       'login-customer-id': loginId,
-      'Content-Type': 'application/json'
+      'Content-Type':     'application/json'
     };
     const r = await fetch(`${ADS_BASE}/customers/${cleanAccountId}/googleAds:search`, {
       method: 'POST', headers, body: JSON.stringify({ query })
@@ -856,7 +969,8 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
   if (cleanMccId && cleanMccId !== cleanAccountId) {
     const { ok, data } = await tryFetch(cleanMccId);
     if (ok) result = data;
-    else console.error(`Metrics error for ${cleanAccountId} (login: ${cleanMccId}):`, JSON.stringify(data).substring(0, 200));
+    else console.error(`Metrics error for ${cleanAccountId} (login: ${cleanMccId}):`,
+      JSON.stringify(data).substring(0, 200));
   }
 
   if (!result) {
@@ -872,12 +986,20 @@ async function getAccountMetrics(authClient, accountId, mccId, dateClause, acces
     if (ok) result = data;
     else {
       const errMsg = data?.error?.message || JSON.stringify(data).substring(0, 100);
-      return { currency:'', descriptiveName:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:true, errorMsg:errMsg };
+      return {
+        currency:'', descriptiveName:'', impressions:0, clicks:0,
+        ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0,
+        hasError:true, errorMsg:errMsg
+      };
     }
   }
 
   if (!result.results || !result.results.length) {
-    return { currency:'', descriptiveName:'', impressions:0, clicks:0, ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0, hasError:false };
+    return {
+      currency:'', descriptiveName:'', impressions:0, clicks:0,
+      ctr:0, avgCpc:0, cost:0, conversions:0, costPerConv:0, convRate:0,
+      hasError:false
+    };
   }
 
   let impressions = 0, clicks = 0, costMicros = 0, conversions = 0;
