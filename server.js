@@ -55,19 +55,45 @@ async function isSessionValid(sessionId) {
   return valid;
 }
 
-async function upsertDbSession(req) {
+function getDeviceCookie(req) {
+  const m = (req.headers.cookie || '').match(/(?:^|;\s*)did=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function upsertDeviceSession(req, deviceId) {
   const now = new Date().toISOString();
-  const { error } = await supabase.from('sessions').upsert({
-    session_id:   req.sessionID,
-    ip_address:   getClientIp(req),
-    user_agent:   req.headers['user-agent'] || '',
-    user_id:      req.session.userId     || null,
-    username:     req.session.username   || null,
-    device_name:  req.session.deviceName || null,
-    created_at:   now,
-    last_seen_at: now
-  }, { onConflict: 'session_id' });
-  if (!error) authCache[req.sessionID] = { valid: true, ts: Date.now() };
+  const { data: existing } = await supabase.from('sessions')
+    .select('session_id, first_login_at').eq('device_id', deviceId).maybeSingle();
+
+  if (existing) {
+    // Same device logging in again — invalidate old auth cache entry, update the row
+    if (existing.session_id) delete authCache[existing.session_id];
+    await supabase.from('sessions').update({
+      session_id:  req.sessionID,
+      ip_address:  getClientIp(req),
+      user_agent:  req.headers['user-agent'] || '',
+      user_id:     req.session.userId     || null,
+      username:    req.session.username   || null,
+      device_name: req.session.deviceName || null,
+      last_seen_at: now
+      // first_login_at intentionally NOT updated — preserved from first login
+    }).eq('device_id', deviceId);
+  } else {
+    // New device — insert a fresh row
+    await supabase.from('sessions').insert({
+      session_id:     req.sessionID,
+      device_id:      deviceId,
+      ip_address:     getClientIp(req),
+      user_agent:     req.headers['user-agent'] || '',
+      user_id:        req.session.userId     || null,
+      username:       req.session.username   || null,
+      device_name:    req.session.deviceName || null,
+      first_login_at: now,
+      created_at:     now,
+      last_seen_at:   now
+    });
+  }
+  authCache[req.sessionID] = { valid: true, ts: Date.now() };
 }
 
 async function requireAuth(req, res, next) {
@@ -186,7 +212,9 @@ app.post('/auth/login', async (req, res) => {
   req.session.username   = user.username;
   req.session.isAdmin    = user.is_admin;
   req.session.deviceName = await resolveDeviceName(getClientIp(req), req.headers['user-agent'] || '');
-  await upsertDbSession(req);
+  const deviceId = getDeviceCookie(req) || crypto.randomUUID();
+  await upsertDeviceSession(req, deviceId);
+  res.cookie('did', deviceId, { maxAge: 365 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax' });
   res.json({ success: true, isAdmin: user.is_admin });
 });
 
@@ -339,14 +367,14 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
   const current = req.sessionID;
   res.json({
     sessions: (data || []).map(s => ({
-      id:         s.id,
-      isCurrent:  s.session_id === current,
-      ipAddress:  s.ip_address,
-      userAgent:  s.user_agent,
-      deviceName: s.device_name || null,
-      username:   s.username || 'Unknown',
-      createdAt:  s.created_at,
-      lastSeenAt: s.last_seen_at
+      id:           s.id,
+      isCurrent:    s.session_id === current,
+      ipAddress:    s.ip_address,
+      userAgent:    s.user_agent,
+      deviceName:   s.device_name || null,
+      username:     s.username || 'Unknown',
+      firstLoginAt: s.first_login_at || s.created_at,
+      lastSeenAt:   s.last_seen_at
     }))
   });
 });
