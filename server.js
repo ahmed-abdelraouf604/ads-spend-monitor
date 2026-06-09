@@ -392,6 +392,7 @@ app.delete('/api/logins/:email', async (req, res) => {
 // ACCOUNTS DISCOVERY
 app.get('/api/accounts', async (req, res) => {
   try {
+    const allowedAccounts = await getUserAllowedAccounts(req); // null = admin (all)
     const logins = await getAllLogins();
     const results = [];
     for (const login of logins) {
@@ -405,7 +406,10 @@ app.get('/api/accounts', async (req, res) => {
         }
       } catch(e) { console.error('Account error for', login.email, e.message); }
     }
-    res.json({ accounts: results });
+    const filtered = allowedAccounts !== null
+      ? results.filter(a => allowedAccounts.has(a.accountId))
+      : results;
+    res.json({ accounts: filtered });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
