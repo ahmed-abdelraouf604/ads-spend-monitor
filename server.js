@@ -225,8 +225,11 @@ function calcPacing(mtdSpend, monthlyBudget, rangePercent) {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Debug endpoints — no auth required
-app.get('/api/debug/session', (req, res) => {
+// Protect all /api/* routes
+app.use('/api', requireAuth);
+
+// Debug endpoints — use /debug/ path to bypass /api requireAuth
+app.get('/debug/session', (req, res) => {
   res.json({
     sessionID: req.sessionID,
     userId: req.session.userId || null,
@@ -236,14 +239,11 @@ app.get('/api/debug/session', (req, res) => {
   });
 });
 
-app.get('/api/debug/users', async (req, res) => {
+app.get('/debug/users', async (req, res) => {
   const { data, error } = await supabase.from('users')
     .select('id, username, is_admin, created_at');
   res.json({ users: data || [], error: error?.message || null });
 });
-
-// Protect all /api/* routes
-app.use('/api', requireAuth);
 
 // Update last_seen_at on every authenticated API request (throttled to once per 5 min)
 app.use('/api', (req, res, next) => {
