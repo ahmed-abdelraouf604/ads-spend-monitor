@@ -1873,7 +1873,7 @@ function renderUsersList() {
       </div>
       <div style="flex:1;min-width:0;">
         <div class="login-email">${esc(u.username)}${adminBadge}${isSelf?'<span style="font-size:9px;color:var(--text3);margin-left:4px;">(you)</span>':''}</div>
-        <div class="login-count">${u.accountCount} account${u.accountCount!==1?'s':''}</div>
+        <div class="login-count" id="ucount_${u.id}">${u.accountCount} account${u.accountCount!==1?'s':''}</div>
       </div>
     </div>`;
   }).join('');
@@ -1907,7 +1907,7 @@ function renderUserDetail() {
     <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
       <div>
         <div style="font-size:14px;font-weight:700;">${esc(user.username)}${adminBadge}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${userAssignments.size} account${userAssignments.size!==1?'s':''} assigned</div>
+        <div id="userDetailSub" style="font-size:11px;color:var(--text3);margin-top:2px;">${userAssignments.size} account${userAssignments.size!==1?'s':''} assigned</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="openResetPwModal('${user.id}','${esc(user.username)}')">🔑 Reset Password</button>
@@ -1920,6 +1920,7 @@ function renderUserDetail() {
     </div>
     <div id="userAccountsTree" style="overflow-y:auto;max-height:480px;"></div>`;
   renderUserAccountsTree();
+  updateUserAccountCount(selectedUserId);
 }
 
 function buildUserMccGroups() {
@@ -1975,16 +1976,20 @@ function renderUserAccountsTree() {
   }).join('');
 }
 
+function updateUserAccountCount(userId) {
+  if (!userId) return;
+  const checked = document.querySelectorAll('#userDetailPanel .acc-row.selected').length;
+  const el = document.getElementById('ucount_' + userId);
+  if (el) el.textContent = checked + ' account' + (checked !== 1 ? 's' : '');
+  const sub = document.getElementById('userDetailSub');
+  if (sub) sub.textContent = checked + ' account' + (checked !== 1 ? 's' : '') + ' assigned';
+}
+
 function toggleUserAccount(accountId) {
   if (userAssignments.has(accountId)) userAssignments.delete(accountId);
   else userAssignments.add(accountId);
   renderUserAccountsTree();
-  // Update count in header
-  const user = usersData.find(u => u.id === selectedUserId);
-  if (user) {
-    const countEl = document.querySelector('#userDetailPanel div[style*="account"]');
-    if (countEl) countEl.textContent = userAssignments.size + ' account' + (userAssignments.size!==1?'s':'') + ' assigned';
-  }
+  updateUserAccountCount(selectedUserId);
 }
 
 function toggleUserMccExpand(mccId) {
@@ -2004,6 +2009,7 @@ function toggleUserMccSelect(e, mccId) {
     else userAssignments.add(a.accountId);
   });
   renderUserAccountsTree();
+  updateUserAccountCount(selectedUserId);
 }
 
 async function saveUserAccounts(userId) {
