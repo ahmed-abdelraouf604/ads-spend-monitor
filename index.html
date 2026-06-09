@@ -543,20 +543,6 @@ footer{padding:16px 28px;font-size:11px;color:var(--text3);border-top:1px solid 
   </div>
 </div>
 
-<!-- DEVICE NAME MODAL -->
-<div class="modal-overlay" id="deviceNameModal">
-  <div class="modal">
-    <h3>Name this device</h3>
-    <div class="sub">Give this browser a memorable name so you can identify it in the Device Manager.</div>
-    <label>Device name</label>
-    <input type="text" id="deviceNameInput" placeholder="e.g. Work Laptop" maxlength="50"
-           onkeydown="if(event.key==='Enter')submitDeviceName()"/>
-    <div class="modal-actions">
-      <button class="btn btn-primary" id="deviceNameContinueBtn" onclick="submitDeviceName()">Continue</button>
-    </div>
-  </div>
-</div>
-
 <script>
 // ── Auth gate ──
 async function checkAuth() {
@@ -596,43 +582,12 @@ async function submitLogin() {
     if (data.success) {
       pwInput.value = '';
       hideAuthOverlay();
-      const savedName = localStorage.getItem('deviceName');
-      if (savedName) {
-        fetch('/api/sessions/current/name', {
-          method: 'PATCH', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceName: savedName })
-        }).catch(() => {});
-        initApp();
-      } else {
-        const { label } = parseUserAgent(navigator.userAgent);
-        document.getElementById('deviceNameInput').value = label;
-        document.getElementById('deviceNameModal').classList.add('open');
-        setTimeout(() => document.getElementById('deviceNameInput').select(), 50);
-      }
+      initApp();
     } else {
       errEl.textContent = data.error || 'Invalid credentials.';
       pwInput.select();
     }
   } catch(e) { errEl.textContent = 'Network error. Try again.'; }
-}
-
-async function submitDeviceName() {
-  const name = document.getElementById('deviceNameInput').value.trim();
-  if (!name) return;
-  const btn = document.getElementById('deviceNameContinueBtn');
-  btn.disabled = true;
-  try {
-    await fetch('/api/sessions/current/name', {
-      method: 'PATCH', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceName: name })
-    });
-    localStorage.setItem('deviceName', name);
-  } catch(e) {}
-  document.getElementById('deviceNameModal').classList.remove('open');
-  btn.disabled = false;
-  initApp();
 }
 
 // ── State ──

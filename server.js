@@ -11,6 +11,7 @@ const { createClient } = require('@supabase/supabase-js');
 const path             = require('path');
 const crypto           = require('crypto');
 const bcrypt           = require('bcrypt');
+const dns              = require('dns').promises;
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -133,6 +134,39 @@ async function bootstrapAdmin() {
   } catch(e) { console.error('bootstrapAdmin:', e.message); }
 }
 
+// ── Device name helpers ──
+function buildUAName(ua) {
+  if (!ua) return 'Unknown Device';
+  let m, browser = '', os = '';
+  if      ((m = ua.match(/Edg\/([\d]+)/)))            browser = 'Edge '    + m[1];
+  else if ((m = ua.match(/OPR\/([\d]+)/)))             browser = 'Opera '   + m[1];
+  else if ((m = ua.match(/Chrome\/([\d]+)/)))          browser = 'Chrome '  + m[1];
+  else if ((m = ua.match(/Firefox\/([\d]+)/)))         browser = 'Firefox ' + m[1];
+  else if ((m = ua.match(/Version\/([\d]+).*Safari/))) browser = 'Safari '  + m[1];
+  else if (/Safari/.test(ua))                          browser = 'Safari';
+  if      ((m = ua.match(/Windows NT ([\d.]+)/)))      os = ({'10.0':'Windows 10','6.3':'Windows 8.1','6.2':'Windows 8','6.1':'Windows 7'}[m[1]] || 'Windows');
+  else if (/Mac OS X/.test(ua))    os = 'macOS';
+  else if (/Android/.test(ua))     os = 'Android';
+  else if (/iPhone|iPad/.test(ua)) os = 'iOS';
+  else if (/CrOS/.test(ua))        os = 'ChromeOS';
+  else if (/Linux/.test(ua))       os = 'Linux';
+  return [browser, os].filter(Boolean).join(' · ') || 'Unknown Device';
+}
+
+async function resolveDeviceName(ip, ua) {
+  const loopback = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+  if (ip && !loopback.includes(ip)) {
+    try {
+      // Race DNS reverse lookup against a 1.5 s timeout so login stays fast
+      const lookup  = dns.reverse(ip).then(hosts => hosts[0]?.split('.')[0] || null);
+      const timeout = new Promise(r => setTimeout(() => r(null), 1500));
+      const host    = await Promise.race([lookup, timeout]);
+      if (host) return host;
+    } catch(e) { /* not resolvable — fall through */ }
+  }
+  return buildUAName(ua);
+}
+
 // ── Login / Logout ──
 app.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
@@ -148,22 +182,12 @@ app.post('/auth/login', async (req, res) => {
   if (!match)
     return res.status(401).json({ error: 'Invalid username or password' });
 
-  req.session.userId   = user.id;
-  req.session.username = user.username;
-  req.session.isAdmin  = user.is_admin;
+  req.session.userId     = user.id;
+  req.session.username   = user.username;
+  req.session.isAdmin    = user.is_admin;
+  req.session.deviceName = await resolveDeviceName(getClientIp(req), req.headers['user-agent'] || '');
   await upsertDbSession(req);
   res.json({ success: true, isAdmin: user.is_admin });
-});
-
-app.patch('/api/sessions/current/name', requireAuth, async (req, res) => {
-  const { deviceName } = req.body;
-  if (!deviceName) return res.status(400).json({ error: 'deviceName required' });
-  const { error } = await supabase.from('sessions')
-    .update({ device_name: deviceName })
-    .eq('session_id', req.sessionID);
-  if (error) return res.status(500).json({ error: error.message });
-  req.session.deviceName = deviceName;
-  res.json({ success: true });
 });
 
 app.post('/auth/logout', async (req, res) => {
