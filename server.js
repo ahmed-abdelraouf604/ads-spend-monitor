@@ -78,20 +78,33 @@ async function requireAuth(req, res, next) {
   try {
     if (await isSessionValid(req.sessionID)) {
       // Re-hydrate session from DB when express-session lost in-memory data (e.g. after restart)
-      if (!req.session.userId) {
+      if (!req.session.userId || req.session.isAdmin === undefined) {
         const { data: sess } = await supabase.from('sessions')
           .select('user_id, username').eq('session_id', req.sessionID).maybeSingle();
-        if (sess?.user_id) {
+        const lookupId = sess?.user_id;
+        if (lookupId) {
           const { data: user } = await supabase.from('users')
-            .select('id, username, is_admin').eq('id', sess.user_id).maybeSingle();
+            .select('id, username, is_admin').eq('id', lookupId).maybeSingle();
           if (user) {
             req.session.userId   = user.id;
             req.session.username = user.username;
-            req.session.isAdmin  = user.is_admin;
-            console.log('[requireAuth] re-hydrated session for', user.username, '(isAdmin:', user.is_admin, ')');
+            req.session.isAdmin  = user.is_admin === true;
+            console.log('[requireAuth] re-hydrated session for', user.username, '(isAdmin:', req.session.isAdmin, ')');
+          }
+        } else if (sess?.username) {
+          // Fallback: look up by username if user_id not stored
+          const { data: user } = await supabase.from('users')
+            .select('id, username, is_admin').eq('username', sess.username).maybeSingle();
+          if (user) {
+            req.session.userId   = user.id;
+            req.session.username = user.username;
+            req.session.isAdmin  = user.is_admin === true;
+            console.log('[requireAuth] re-hydrated by username for', user.username, '(isAdmin:', req.session.isAdmin, ')');
           }
         }
       }
+      // Extra safety: ensure isAdmin is always a boolean
+      if (req.session.isAdmin === undefined) req.session.isAdmin = false;
       return next();
     }
   } catch(e) { console.error('requireAuth:', e.message); }
@@ -105,7 +118,8 @@ function requireAdmin(req, res, next) {
 
 // Returns null for admins (no restriction) or a Set<account_id> for regular users
 async function getUserAllowedAccounts(req) {
-  if (req.session.isAdmin) return null;
+  if (req.session.isAdmin === true) return null; // admin sees all
+  if (!req.session.userId) return new Set(); // no user = no accounts
   const { data } = await supabase.from('user_accounts')
     .select('account_id').eq('user_id', req.session.userId);
   return new Set((data || []).map(r => r.account_id));
