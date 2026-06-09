@@ -225,6 +225,23 @@ function calcPacing(mtdSpend, monthlyBudget, rangePercent) {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// Debug endpoints — no auth required
+app.get('/api/debug/session', (req, res) => {
+  res.json({
+    sessionID: req.sessionID,
+    userId: req.session.userId || null,
+    username: req.session.username || null,
+    isAdmin: req.session.isAdmin,
+    authenticated: req.session.authenticated || null
+  });
+});
+
+app.get('/api/debug/users', async (req, res) => {
+  const { data, error } = await supabase.from('users')
+    .select('id, username, is_admin, created_at');
+  res.json({ users: data || [], error: error?.message || null });
+});
+
 // Protect all /api/* routes
 app.use('/api', requireAuth);
 
