@@ -615,6 +615,7 @@ let currentUsername = '';
 let myAccountIds = null; // null = admin (all accounts), Set = allowed account_ids for regular user
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
+let mccNameMap = {}; // cleaned mccId → real mccName (from /api/mccs)
 let whitelist = new Set(), whitelistData = {};
 let removedAccounts = new Set();
 let dashSelected = new Set(); // accountIds selected for bulk budget on dashboard
@@ -1301,7 +1302,9 @@ function buildPerfMccs() {
     const clean = (accountId||'').replace(/-/g,'');
     if (!allowed(clean)) return;
     const mccId    = (mccIdRaw || 'unknown').replace(/-/g,'');
-    const realName = isReal(mccNameRaw) ? mccNameRaw : null;
+    // Authoritative name from /api/mccs takes priority over any inline name.
+    const realName = isReal(mccNameMap[mccId]) ? mccNameMap[mccId]
+                   : (isReal(mccNameRaw) ? mccNameRaw : null);
     if (!perfMccs[mccId]) {
       perfMccs[mccId] = { mccId, mccName: realName || ('MCC ' + mccId), accounts: [] };
     } else if (realName && !isReal(perfMccs[mccId].mccName)) {
@@ -1340,6 +1343,17 @@ async function initPerformanceTab() {
           discoveredAccounts[a.loginEmail].push(a);
       });
     } catch(e) { console.log('Account discovery error:', e.message); }
+  }
+  // Fetch real MCC names from /api/mccs so the dropdown shows "WL PPC" etc.
+  // instead of "MCC 4691500511", even for MCCs with no discovered sub-accounts.
+  if (Object.keys(mccNameMap).length === 0) {
+    try {
+      const res = await api('/api/mccs');
+      (res.mccs||[]).forEach(m => {
+        const id = (m.mccId||'').replace(/-/g,'');
+        if (id && m.mccName) mccNameMap[id] = m.mccName;
+      });
+    } catch(e) { console.log('MCC discovery error:', e.message); }
   }
   buildPerfMccs();
   // Reset mode to all when re-entering tab

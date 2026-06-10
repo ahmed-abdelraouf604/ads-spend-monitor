@@ -593,6 +593,38 @@ app.get('/api/accounts', async (req, res) => {
   }
 });
 
+// All MCCs the admin has access to, with their real (descriptive) names.
+// Used by the Performance tab to label the MCC dropdown even for MCCs that
+// have no discoverable sub-accounts. NOT whitelist-filtered.
+app.get('/api/mccs', async (req, res) => {
+  try {
+    const logins = await getAllLogins();
+    const mccs   = [];
+    const seen   = new Set();
+
+    for (const login of logins) {
+      try {
+        const authClient = await getAuthClient(login);
+        const mccIds     = await listAccessibleCustomers(authClient);
+        for (const mccId of mccIds) {
+          if (seen.has(mccId)) continue;
+          seen.add(mccId);
+          const mccName = await getMccName(authClient, mccId);
+          mccs.push({ mccId, mccName, loginEmail: login.email });
+        }
+      } catch (e) {
+        console.error('[/api/mccs] error for', login.email, ':', e.message);
+      }
+    }
+
+    console.log('[/api/mccs] returning', mccs.length, 'MCCs');
+    res.json({ mccs });
+  } catch (err) {
+    console.error('[/api/mccs] fatal:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============================================================
 // SPEND + PACING
 // ============================================================
