@@ -615,7 +615,6 @@ let currentUsername = '';
 let myAccountIds = null; // null = admin (all accounts), Set = allowed account_ids for regular user
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
-let mccNameMap = {}; // cleaned mccId → real mccName (from /api/mccs)
 let whitelist = new Set(), whitelistData = {};
 let removedAccounts = new Set();
 let dashSelected = new Set(); // accountIds selected for bulk budget on dashboard
@@ -1302,9 +1301,7 @@ function buildPerfMccs() {
     const clean = (accountId||'').replace(/-/g,'');
     if (!allowed(clean)) return;
     const mccId    = (mccIdRaw || 'unknown').replace(/-/g,'');
-    // Authoritative name from /api/mccs takes priority over any inline name.
-    const realName = isReal(mccNameMap[mccId]) ? mccNameMap[mccId]
-                   : (isReal(mccNameRaw) ? mccNameRaw : null);
+    const realName = isReal(mccNameRaw) ? mccNameRaw : null;
     if (!perfMccs[mccId]) {
       perfMccs[mccId] = { mccId, mccName: realName || ('MCC ' + mccId), accounts: [] };
     } else if (realName && !isReal(perfMccs[mccId].mccName)) {
@@ -1325,37 +1322,39 @@ function buildPerfMccs() {
 }
 
 async function initPerformanceTab() {
-  // If no accounts loaded yet, fetch them first
-  if (allSpend.length === 0 && Object.keys(whitelistData).length === 0) {
-    await loadWhitelistFromDB();
-  }
-  // Discover the FULL account tree from /api/accounts so the dropdowns show every
-  // sub-account (not just whitelisted) and real MCC names. Runs whenever the tree
-  // is empty — no longer gated on logins being loaded first.
-  if (Object.keys(discoveredAccounts).length === 0) {
-    const mccLabel = document.getElementById('mccDropLabel');
-    if (mccLabel) mccLabel.textContent = 'Loading accounts…';
-    try {
-      const res = await api('/api/accounts');
-      (res.accounts||[]).forEach(a => {
-        if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
-        if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
-          discoveredAccounts[a.loginEmail].push(a);
-      });
-    } catch(e) { console.log('Account discovery error:', e.message); }
-  }
-  // Fetch real MCC names from /api/mccs so the dropdown shows "WL PPC" etc.
-  // instead of "MCC 4691500511", even for MCCs with no discovered sub-accounts.
-  if (Object.keys(mccNameMap).length === 0) {
-    try {
-      const res = await api('/api/mccs');
-      (res.mccs||[]).forEach(m => {
-        const id = (m.mccId||'').replace(/-/g,'');
-        if (id && m.mccName) mccNameMap[id] = m.mccName;
-      });
-    } catch(e) { console.log('MCC discovery error:', e.message); }
-  }
-  buildPerfMccs();
+  const mccLabel = document.getElementById('mccDropLabel');
+  const accLabel = document.getElementById('accDropLabel');
+  if (mccLabel) mccLabel.textContent = 'Loading…';
+
+  // Step 1: Fetch all MCCs with real names from dedicated endpoint
+  try {
+    const mccRes = await api('/api/mccs');
+    (mccRes.mccs || []).forEach(m => {
+      const mccId = m.mccId.replace(/-/g,'');
+      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: m.mccName, accounts: [] };
+      else if (m.mccName && !perfMccs[mccId].mccName.startsWith('MCC '))
+        perfMccs[mccId].mccName = m.mccName; // upgrade to real name
+    });
+  } catch(e) { console.log('MCC fetch error:', e.message); }
+
+  // Step 2: Fetch ALL accounts (not just whitelisted) for the dropdown
+  try {
+    const res = await api('/api/accounts');
+    (res.accounts||[]).forEach(a => {
+      // Store in discoveredAccounts for Manage Logins
+      if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
+      if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
+        discoveredAccounts[a.loginEmail].push(a);
+      // Also add directly to perfMccs
+      const mccId = (a.mccId||'').replace(/-/g,'');
+      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: a.mccName || ('MCC '+mccId), accounts: [] };
+      else if (a.mccName && isReal(a.mccName)) perfMccs[mccId].mccName = a.mccName;
+      const clean = (a.accountId||'').replace(/-/g,'');
+      if (clean && !perfMccs[mccId].accounts.find(x => x.accountId === clean))
+        perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
+    });
+  } catch(e) { console.log('Account discovery error:', e.message); }
+
   // Reset mode to all when re-entering tab
   mccMode = 'all'; accMode = 'all';
   selMccs.clear(); selAccounts.clear();
