@@ -1294,12 +1294,13 @@ const COL_DEFS = [
 // the real MCC name and ALL sub-accounts. allSpend / whitelistData only enrich names.
 function buildPerfMccs() {
   perfMccs = {};
-  const allowed = id => myAccountIds === null || myAccountIds.has((id||'').replace(/-/g,''));
+  // NO whitelist / assigned-account filtering here. The Performance tab shows the
+  // FULL discovered tree from /api/accounts; the only narrowing is the MCC dropdown
+  // selection, applied later in renderAccDropdown().
   const isReal  = name => name && !/^MCC\s/i.test(name); // a real name, not the "MCC <id>" placeholder
 
   function add(mccIdRaw, mccNameRaw, accountId, accountName, currency) {
     const clean = (accountId||'').replace(/-/g,'');
-    if (!allowed(clean)) return;
     const mccId    = (mccIdRaw || 'unknown').replace(/-/g,'');
     const realName = isReal(mccNameRaw) ? mccNameRaw : null;
     if (!perfMccs[mccId]) {
