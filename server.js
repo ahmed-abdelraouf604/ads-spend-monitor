@@ -445,14 +445,24 @@ app.get('/api/accounts', async (req, res) => {
     console.log('[/api/accounts] allowedAccounts:', allowedAccounts === null ? 'null (admin - all)' : `Set(${allowedAccounts.size})`);
     const logins = await getAllLogins();
     const results = [];
+    const seen    = new Set(); // mccId:accountId — guards against the same account under multiple logins
     for (const login of logins) {
       try {
         const authClient = await getAuthClient(login);
-        const mccs = await listAccessibleCustomers(authClient);
-        for (const mccId of mccs) {
-          const mccName = await getMccName(authClient, mccId);
-          const accounts = await listSubAccounts(authClient, mccId);
-          results.push(...accounts.map(a => ({ ...a, loginEmail: login.email, mccId, mccName })));
+        const roots = await listAccessibleCustomers(authClient);
+        for (const rootId of roots) {
+          // Walk the FULL manager hierarchy (root + nested sub-MCCs), then list
+          // each MCC's direct client accounts grouped under that MCC.
+          const managers = await listManagerAccounts(authClient, rootId);
+          for (const m of managers) {
+            const accounts = await listSubAccounts(authClient, m.mccId);
+            for (const a of accounts) {
+              const key = m.mccId + ':' + a.accountId;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              results.push({ ...a, loginEmail: login.email, mccId: m.mccId, mccName: m.mccName });
+            }
+          }
         }
       } catch(e) { console.error('Account error for', login.email, e.message); }
     }
@@ -461,6 +471,32 @@ app.get('/api/accounts', async (req, res) => {
       : results;
     console.log('[/api/accounts] returning', filtered.length, 'of', results.length, 'accounts');
     res.json({ accounts: filtered });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ALL MCCs reachable through the linked logins — the full manager hierarchy
+// (top-level AND nested sub-MCCs), NOT just the ones whitelisted in Manage
+// Logins. Powers the Performance tab MCC dropdown.
+app.get('/api/mccs', async (req, res) => {
+  try {
+    const logins = await getAllLogins();
+    const byId   = new Map(); // mccId -> { mccId, mccName, loginEmail }
+    for (const login of logins) {
+      try {
+        const authClient = await getAuthClient(login);
+        const roots = await listAccessibleCustomers(authClient);
+        for (const rootId of roots) {
+          const managers = await listManagerAccounts(authClient, rootId);
+          for (const m of managers) {
+            if (!byId.has(m.mccId))
+              byId.set(m.mccId, { mccId: m.mccId, mccName: m.mccName, loginEmail: login.email });
+          }
+        }
+      } catch(e) { console.error('[/api/mccs] error for', login.email, e.message); }
+    }
+    const mccs = [...byId.values()];
+    console.log('[/api/mccs] returning', mccs.length, 'MCCs');
+    res.json({ mccs });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -607,7 +643,7 @@ async function getMccName(authClient, mccId) {
 async function listSubAccounts(authClient, mccId) {
   const token    = (await authClient.getAccessToken()).token;
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-  const query    = `SELECT customer_client.id, customer_client.descriptive_name, customer_client.currency_code FROM customer_client WHERE customer_client.level = 1 AND customer_client.status = 'ENABLED'`;
+  const query    = `SELECT customer_client.id, customer_client.descriptive_name, customer_client.currency_code FROM customer_client WHERE customer_client.level = 1 AND customer_client.status = 'ENABLED' AND customer_client.manager = FALSE`;
   const res  = await fetch(`${ADS_BASE}/customers/${mccId}/googleAds:search`, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': mccId, 'Content-Type': 'application/json' },
@@ -619,6 +655,26 @@ async function listSubAccounts(authClient, mccId) {
     accountId:   String(r.customerClient.id),
     accountName: r.customerClient.descriptiveName || 'Account ' + r.customerClient.id,
     currency:    r.customerClient.currencyCode || ''
+  }));
+}
+
+// Every manager (MCC) in the hierarchy under rootId — including rootId itself
+// when it is a manager. customer_client returns all descendants; the
+// manager = TRUE filter keeps only the MCCs (top-level AND nested sub-MCCs).
+async function listManagerAccounts(authClient, rootId) {
+  const token    = (await authClient.getAccessToken()).token;
+  const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const query    = `SELECT customer_client.id, customer_client.descriptive_name, customer_client.level, customer_client.manager FROM customer_client WHERE customer_client.manager = TRUE`;
+  const res  = await fetch(`${ADS_BASE}/customers/${rootId}/googleAds:search`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'developer-token': devToken, 'login-customer-id': rootId, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  const data = await res.json();
+  if (!res.ok) { console.error('[listManagerAccounts]', rootId, JSON.stringify(data).substring(0, 200)); return []; }
+  return (data.results || []).map(r => ({
+    mccId:   String(r.customerClient.id),
+    mccName: r.customerClient.descriptiveName || ('MCC ' + r.customerClient.id)
   }));
 }
 
