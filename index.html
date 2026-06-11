@@ -615,6 +615,7 @@ let currentUsername = '';
 let myAccountIds = null; // null = admin (all accounts), Set = allowed account_ids for regular user
 let allSpend = [], activeFilter = 'all', logins = [];
 let discoveredAccounts = {}; // email → [{accountId, accountName, mccId, mccName, currency}]
+let mccNameMap = {}; // cleaned mccId → real mccName (from /api/mccs)
 let whitelist = new Set(), whitelistData = {};
 let removedAccounts = new Set();
 let dashSelected = new Set(); // accountIds selected for bulk budget on dashboard
@@ -1302,7 +1303,9 @@ function buildPerfMccs() {
   function add(mccIdRaw, mccNameRaw, accountId, accountName, currency) {
     const clean = (accountId||'').replace(/-/g,'');
     const mccId    = (mccIdRaw || 'unknown').replace(/-/g,'');
-    const realName = isReal(mccNameRaw) ? mccNameRaw : null;
+    // Authoritative name from /api/mccs takes priority over any inline name.
+    const realName = isReal(mccNameMap[mccId]) ? mccNameMap[mccId]
+                   : (isReal(mccNameRaw) ? mccNameRaw : null);
     if (!perfMccs[mccId]) {
       perfMccs[mccId] = { mccId, mccName: realName || ('MCC ' + mccId), accounts: [] };
     } else if (realName && !isReal(perfMccs[mccId].mccName)) {
@@ -1312,6 +1315,9 @@ function buildPerfMccs() {
       perfMccs[mccId].accounts.push({ accountId: clean, accountName: accountName || ('Account ' + clean), currency: currency || '' });
   }
 
+  // Source 0: /api/mccs names — seed every accessible MCC (with its real name) so
+  // named MCCs still appear even if they have no discovered sub-accounts.
+  Object.keys(mccNameMap).forEach(id => add(id, mccNameMap[id], null, null, null));
   // Source 1: discoveredAccounts — full account tree + real MCC names from /api/accounts
   Object.keys(discoveredAccounts).forEach(email => {
     (discoveredAccounts[email] || []).forEach(a => add(a.mccId, a.mccName, a.accountId, a.accountName, a.currency));
@@ -1324,37 +1330,29 @@ function buildPerfMccs() {
 
 async function initPerformanceTab() {
   const mccLabel = document.getElementById('mccDropLabel');
-  const accLabel = document.getElementById('accDropLabel');
   if (mccLabel) mccLabel.textContent = 'Loading…';
 
-  // Step 1: Fetch all MCCs with real names from dedicated endpoint
+  // Step 1: Fetch all MCCs with their real names (authoritative) → mccNameMap.
   try {
     const mccRes = await api('/api/mccs');
     (mccRes.mccs || []).forEach(m => {
-      const mccId = m.mccId.replace(/-/g,'');
-      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: m.mccName, accounts: [] };
-      else if (m.mccName && !perfMccs[mccId].mccName.startsWith('MCC '))
-        perfMccs[mccId].mccName = m.mccName; // upgrade to real name
+      const id = (m.mccId||'').replace(/-/g,'');
+      if (id && m.mccName) mccNameMap[id] = m.mccName;
     });
   } catch(e) { console.log('MCC fetch error:', e.message); }
 
-  // Step 2: Fetch ALL accounts (not just whitelisted) for the dropdown
+  // Step 2: Fetch the FULL account tree (ALL accounts, never whitelist-filtered).
   try {
     const res = await api('/api/accounts');
     (res.accounts||[]).forEach(a => {
-      // Store in discoveredAccounts for Manage Logins
       if (!discoveredAccounts[a.loginEmail]) discoveredAccounts[a.loginEmail] = [];
       if (!discoveredAccounts[a.loginEmail].find(x => x.accountId === a.accountId))
         discoveredAccounts[a.loginEmail].push(a);
-      // Also add directly to perfMccs
-      const mccId = (a.mccId||'').replace(/-/g,'');
-      if (!perfMccs[mccId]) perfMccs[mccId] = { mccId, mccName: a.mccName || ('MCC '+mccId), accounts: [] };
-      else if (a.mccName && isReal(a.mccName)) perfMccs[mccId].mccName = a.mccName;
-      const clean = (a.accountId||'').replace(/-/g,'');
-      if (clean && !perfMccs[mccId].accounts.find(x => x.accountId === clean))
-        perfMccs[mccId].accounts.push({ accountId: clean, accountName: a.accountName, currency: a.currency||'' });
     });
   } catch(e) { console.log('Account discovery error:', e.message); }
+
+  // Build perfMccs from the loaded data (no whitelist / assigned-account filtering).
+  buildPerfMccs();
 
   // Reset mode to all when re-entering tab
   mccMode = 'all'; accMode = 'all';
